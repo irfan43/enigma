@@ -13,7 +13,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Scanner;
 
-public class Main {
+public class Enigma {
     private static KeyPair Kpair = null;
     private static PublicKey TherePubKey = null;
     private static byte[] SharedSct = null;
