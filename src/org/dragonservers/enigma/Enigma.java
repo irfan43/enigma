@@ -19,7 +19,7 @@ public class Enigma {
     private static byte[] SharedSct = null;
     public static Scanner scn = new Scanner(System.in);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         while(true) {
             System.out.println("Menu");
             System.out.println("O - Open or Generate new Key");
