@@ -10,12 +10,8 @@ public class EnigmaCrypto {
 
     public static byte[] Encrypt(byte[] data,byte[] key,int pos){
         byte[] Encrypted = data.clone();
-
         for (int i = 0; i < Encrypted.length; i++)
             Encrypted[i] ^= key[(pos + i) % key.length];
-
         return Encrypted;
     }
-
-
 }

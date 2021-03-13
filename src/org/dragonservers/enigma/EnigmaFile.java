@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
-import java.sql.SQLData;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -221,13 +220,13 @@ public class EnigmaFile {
                  throw new FileNotFoundException("Could not create Directory");
         }
 
-        byte[] Signiture = new byte[8];
-        bis.read(Signiture);
+        byte[] Signature = new byte[8];
+        bis.read(Signature);
 
         byte[] versionCode = new byte[4];
         bis.read(versionCode);
 
-        if(!Arrays.equals(Signiture,EncryptionSignature) )
+        if(!Arrays.equals(Signature,EncryptionSignature) )
             throw new IOException("Invalid Signature, This is not a Encryption file or has a bad header ");
         //TODO handle version stuff currently 1 version so not needed
 
@@ -245,8 +244,12 @@ public class EnigmaFile {
         for(int i = 0;i < nFiles;i++){
             pos = SaveDecryptedFile(bis,key,pos,md,destination);
         }
+        byte[] calculateHash = md.digest();
+        byte[] hash = (byte[]) GrabEncryptedBlock(bis,key,pos,md)[0];
+        if(!Arrays.equals(hash,calculateHash))
+            throw new IOException("Bad HASH ");
 
-
+        bis.close();
     }
     //TODO verify this
     public static boolean IsParentDirectory(File ToCheck, File Parent) throws IOException {
