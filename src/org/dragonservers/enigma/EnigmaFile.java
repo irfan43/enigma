@@ -1,7 +1,6 @@
 package org.dragonservers.enigma;
 
-import org.jetbrains.annotations.NotNull;
-
+import org.jetbrains.annotations.Nullable;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +15,7 @@ import java.util.List;
 public class EnigmaFile {
 
     //Constants
-    public static byte[] EncryptionSignature = new byte[]{ (byte)0x1d,(byte)0x08,(byte)0x14,(byte)0x17,(byte)0x06,(byte)0x13,(byte)0x36};
+    public static byte[] EncryptionSignature = new byte[]{ (byte)0x1d,(byte)0x08,(byte)0x14, (byte)0x0e,(byte)0x17,(byte)0x06,(byte)0x13,(byte)0x36};
     public static byte[] VersionCode = new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
 
 
@@ -101,7 +100,7 @@ public class EnigmaFile {
         byte[] intenc = ByteBuffer.allocate(4).putInt(bin.length).array();
 
         System.arraycopy(intenc,0,block,0,4);
-        System.arraycopy(bin, 4,block,4,bin.length);
+        System.arraycopy(bin, 0,block,4,bin.length);
 
         return block;
     }
@@ -155,10 +154,8 @@ public class EnigmaFile {
 
         // calculate the hash
         byte[] sha256 = md.digest();
-        sha256 = EnigmaCrypto.Encrypt(sha256,key,pos);
-        pos += sha256.length;
-        bos.write(GetBlock(sha256));
-        bos.flush();
+        bos.write(sha256);
+        System.out.println( " hash = "  + Enigma.toHexString(sha256));
         bos.close();
 
     }
@@ -193,7 +190,6 @@ public class EnigmaFile {
             //trim pos to stop overflowing
             if(pos >= (key.length*10))pos -= key.length*(pos/ key.length);
         }
-        bos.close();
         return pos;
     }
     private static int DigestEncryptWrite(byte[] block,MessageDigest md, byte[] key, int pos,BufferedOutputStream bos) throws IOException {
@@ -203,7 +199,6 @@ public class EnigmaFile {
         bos.write(Encrypted);
         return  pos;
     }
-
     public static void DecryptFile(File Filename,String Destination,byte[] key) throws IOException, NoSuchAlgorithmException {
         int pos = 0;
 
@@ -245,7 +240,12 @@ public class EnigmaFile {
             pos = SaveDecryptedFile(bis,key,pos,md,destination);
         }
         byte[] calculateHash = md.digest();
-        byte[] hash = (byte[]) GrabEncryptedBlock(bis,key,pos,md)[0];
+        byte[] hash = new byte[32];
+        int EOF = bis.read(hash);
+
+        System.out.println( " calc = "  + Enigma.toHexString(calculateHash) );
+
+        System.out.println( " read = "  + Enigma.toHexString(hash) + "\n EOF = " + EOF);
         if(!Arrays.equals(hash,calculateHash))
             throw new IOException("Bad HASH ");
 
@@ -268,7 +268,7 @@ public class EnigmaFile {
         pos = (int) rtr[1];
 
         String outputFilename = new String(fileNameEnc,StandardCharsets.UTF_8);
-        File output = new File(outputFilename);
+        File output = new File(TopDirectory,outputFilename);
         if(output.exists())
             throw new IOException( output.getName() + " already exists");
         //TODO add overWright flag
@@ -276,7 +276,7 @@ public class EnigmaFile {
         if(!IsParentDirectory(output,TopDirectory))
             throw new IOException("BAD FILE Directory, trying to escape TopDirectory ");
 
-        if(!output.getParentFile().mkdirs())
+        if(!TopDirectory.exists())if(!TopDirectory.mkdirs())
             throw new IOException("Failed To Make Parent Directories");
 
         FileOutputStream fos = new FileOutputStream(output);
@@ -305,17 +305,16 @@ public class EnigmaFile {
             pos += buffer.length;
             md.update(buffer);
             bos.write(buffer);
+            if(pos > key.length*10)pos -= (pos/key.length)*key.length;
         }
         bos.flush();
         bos.close();
         return pos;
     }
-    private static Object[] GrabEncryptedBlock(BufferedInputStream bis, byte[] key,int pos, MessageDigest md) throws IOException {
-        byte[] blockLengthEnc = new byte[4];
-        bis.read(blockLengthEnc);
-        blockLengthEnc = EnigmaCrypto.Encrypt(blockLengthEnc,key,pos);
 
-        md.update(blockLengthEnc);
+    private static Object[] GrabEncryptedBlock(BufferedInputStream bis, byte[] key,int pos,@Nullable MessageDigest md) throws IOException {
+        byte[] blockLengthEnc = ReadDecryptDigest(4,bis,key,pos,md);
+        //TODO replace with ReadDecryptDigest
         pos += blockLengthEnc.length;
         int blockLength = ByteBuffer.wrap(blockLengthEnc).getInt();
 
@@ -323,15 +322,16 @@ public class EnigmaFile {
 
         bis.read(data);
         data = EnigmaCrypto.Encrypt(data,key,pos);
-        md.update(data);
+        if(md != null)md.update(data);
         pos += data.length;
         return new Object[]{data,pos};
     }
-    private static byte[] ReadDecryptDigest(int len, BufferedInputStream bis, byte[] key,int pos, MessageDigest md) throws IOException {
+
+    private static byte[] ReadDecryptDigest(int len, BufferedInputStream bis, byte[] key,int pos,@Nullable MessageDigest md) throws IOException {
         byte[] bin = new byte[len];
         bis.read(bin);
-        EnigmaCrypto.Encrypt(bin,key,pos);
-        md.update(bin);
+        bin = EnigmaCrypto.Encrypt(bin,key,pos);
+        if(md != null)md.update(bin);
         return bin;
     }
 
