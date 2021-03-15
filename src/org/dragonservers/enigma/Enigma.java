@@ -1,15 +1,7 @@
 package org.dragonservers.enigma;
 
-import javax.crypto.KeyAgreement;
 import java.io.*;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 
 public class Enigma {
@@ -25,8 +17,8 @@ public class Enigma {
 
         while(true) {
             System.out.println("Menu");
-            System.out.println("E - Open or Generate new Key");
-            System.out.println("D - Load There Pub Key");
+            System.out.println("E - Encrypt File");
+            System.out.println("D - Decrypt File");
             System.out.println("Q - Quit");
             String Response = scn.nextLine();
             switch (Response) {
@@ -46,43 +38,47 @@ public class Enigma {
     }
 
     private static void Encrypted()  {
+
+
         String FileName = "y";
         List<File> ToEncrypt = new ArrayList<>();
         while(FileName.toLowerCase().startsWith("y")){
             System.out.println("Enter File name to be encrypted:");
             FileName = scn.nextLine();
+
             File tmp = new File(FileName);
             ToEncrypt.add(tmp);
             System.out.println("Add Another File? (yes/no)");
             FileName = scn.nextLine();
         }
+
+        //asks for password
         String Password;
         Console con = System.console();
         while (true){
             System.out.println("Enter Password:-");
-            char[] Pass = con.readPassword();
-
-            Password = String.valueOf(Pass);
+            Password = getPassword(System.console());
             System.out.println("Confirm Password:-");
-            Pass = con.readPassword();
-            String PasswordConfirm = String.valueOf(Pass);
-
-            if(Password.equals(PasswordConfirm))break;
-
+            if(Password.equals(getPassword(System.console())))break;
             System.out.println("Passwords do not match, Try again");
         }
+
         System.out.println("Enter File Name to save your Encrypted Package:-");
         String OutFileName = scn.nextLine() + ".crypt";
         byte[] hash;
         try {
-            hash = EnigmaCrypto.SHA256(OutFileName);
+            hash = EnigmaCrypto.SHA256(Password);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return;
         }
-
+        File[] Set = new File[ToEncrypt.size()];
+        for (int i = 0; i < ToEncrypt.size(); i++) {
+            Set[i] = ToEncrypt.get(i);
+        }
+        System.out.println("Encryption Running with \n Key  = " + toHexString(hash));
         try {
-            EnigmaFile.EncryptFile((File[]) ToEncrypt.toArray(),hash,OutFileName);
+            EnigmaFile.EncryptFile( Set,hash,OutFileName);
         } catch (IOException | NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
@@ -98,17 +94,27 @@ public class Enigma {
         System.out.println(" Package FileName:-");
         CryptFileName = scn.nextLine();
         System.out.println( "Password");
-        char[] pass = System.console().readPassword();
-        Password = String.valueOf(pass);
-
+        //char[] pass = System.console().readPassword();
+        Password = getPassword(System.console());
         try {
-            EnigmaFile.DecryptFile(new File(CryptFileName),DestFileName,EnigmaCrypto.SHA256(Password));
+            byte[] hash = EnigmaCrypto.SHA256(Password);
+            System.out.println("Running Decryption...\n Key = " + toHexString(hash));
+            EnigmaFile.DecryptFile(new File(CryptFileName),DestFileName,hash);
         } catch (IOException | NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
 
     }
-
+    public static String getPassword(Console con){
+        String Pass;
+        if(con != null) {
+            char[] ch = System.console().readPassword();
+            Pass = String.valueOf(ch);
+        }else{
+            Pass = scn.nextLine();
+        }
+        return Pass;
+    }
 
 
     public static String toHexString(byte[] block) {
