@@ -11,7 +11,9 @@ import java.security.spec.X509EncodedKeySpec;
 public class EnigmaKeyHandler {
 
     private final KeyPair keyPair;
-
+    public EnigmaKeyHandler(KeyPair KeyPair){
+        keyPair = KeyPair;
+    }
     public EnigmaKeyHandler(File KeyPairFile, String Password) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
         if(KeyPairFile.exists()){
             //read the file
@@ -36,9 +38,9 @@ public class EnigmaKeyHandler {
 
     //STATIC FUNCTION
     public static KeyPair GenerateKeypair() throws NoSuchAlgorithmException {
-        KeyPairGenerator KPgen = KeyPairGenerator.getInstance("DH");
-        KPgen.initialize(2048);
-        return KPgen.generateKeyPair();
+        KeyPairGenerator KGen = KeyPairGenerator.getInstance("DH");
+        KGen.initialize(2048);
+        return KGen.generateKeyPair();
     }
 
     public static PrivateKey PrivateKeyFromEnc(byte[] Encoded) throws NoSuchAlgorithmException, InvalidKeySpecException {

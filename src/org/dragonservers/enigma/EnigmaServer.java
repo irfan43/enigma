@@ -1,21 +1,32 @@
 package org.dragonservers.enigma;
 
-import org.jetbrains.annotations.Nullable;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.security.PublicKey;
+import java.nio.charset.StandardCharsets;
 
 public class EnigmaServer {
 
-
-    public EnigmaServer(String DomainName,int Port){
-
+    private Socket sock;
+    private byte[] Secret;
+    private String ServerIP;
+    private int ServerPort;
+    public EnigmaServer(String DomainName,int Port) throws IOException {
+        ServerIP = DomainName;
+        ServerPort = Port;
     }
-    public void RegisterUser(String RegistrationCode, EnigmaKeyHandler enigmaKeyHandler,String Password){
+    public void RegisterUser(String RegistrationCode, EnigmaKeyHandler enigmaKeyHandler,String Password) throws IOException {
+        sock = new Socket(ServerIP,ServerPort);
 
+        DataInputStream dis = new DataInputStream( sock.getInputStream() );
+        DataOutputStream dos = new DataOutputStream(sock.getOutputStream());
+
+        SendBlock("RGS".getBytes(StandardCharsets.UTF_8),dos,null);
+
+
+        sock.close();
     }
 
     private void SendBlock(byte[] bin, DataOutputStream dos,byte[] key) throws IOException {
@@ -31,15 +42,14 @@ public class EnigmaServer {
     }
     private byte[] GrabBlock(DataInputStream dis,byte[] key) throws IOException {
         byte[] lenEnc = new byte[4];
-        dis.read(lenEnc);
+        if(dis.read(lenEnc) == -1)
+            throw new IOException("End OF Data Input Stream Reached Unexpectedly");
         int len = ByteBuffer.wrap(lenEnc).getInt();
         if(len <= 0)
             throw new IOException("Bad Block Length");
-
-
         byte[] block = new byte[len];
-        dis.read(block); //TODO handle returning -1
-
+        if(dis.read(block) == -1)
+            throw new IOException("End OF Data Input Stream Reached Unexpectedly");
         return block;
     }
 }

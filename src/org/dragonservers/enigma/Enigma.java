@@ -2,118 +2,106 @@ package org.dragonservers.enigma;
 
 import java.io.*;
 import java.security.*;
+import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 
 public class Enigma {
-    private static KeyPair Kpair = null;
-    private static PublicKey TherePubKey = null;
-    private static byte[] SharedSct = null;
     public static Scanner scn = new Scanner(System.in);
+    public static EnigmaKeyHandler OurKeyHandler;
+    public static byte[] UserPassword;
+
+    public static String Username,ConfigFileName = "Enigma.conf",KeyPairFile = "keys/Keypair.kpr";
+    public static boolean Registered = false,KeypairGenerated= false;
 
     public static void main(String[] args) {
-
-            //EnigmaFile.EncryptFile(srcFiles,EnigmaCrypto.SHA256("PasswordEnigma"), "Hash.crypt");
-            //EnigmaFile.DecryptFile(new File("Hash.crypt"),"output",EnigmaCrypto.SHA256("PasswordEnigma"));
-
-        while(true) {
-            System.out.println("Menu");
-            System.out.println("E - Encrypt File");
-            System.out.println("D - Decrypt File");
-            System.out.println("Q - Quit");
-            String Response = scn.nextLine();
-            switch (Response) {
-                case "Q":
-                case "q":
-                    return;
-                case "d":
-                case "D":
-                    Decrypt();
-                    break;
-                case "E":
-                case "e":
-                    Encrypted();
-                    break;
-            }
+        //Start of Enigma
+        if(args.length != 0){
+            //handle any arguments that come up
+            System.out.println("Command Line Arguments Not Yet supported ");
         }
+
+        CheckConfigFile();
+        GetPasswordFromUser();
+        CheckKeyPair();
+
+
+
+
+
     }
 
-    private static void Encrypted()  {
-
-
-        String FileName = "y";
-        List<File> ToEncrypt = new ArrayList<>();
-        while(FileName.toLowerCase().startsWith("y")){
-            System.out.println("Enter File name to be encrypted:");
-            FileName = scn.nextLine();
-
-            File tmp = new File(FileName);
-            ToEncrypt.add(tmp);
-            System.out.println("Add Another File? (yes/no)");
-            FileName = scn.nextLine();
-        }
-
-        //asks for password
-        String Password;
-        Console con = System.console();
-        while (true){
-            System.out.println("Enter Password:-");
-            Password = getPassword(System.console());
-            System.out.println("Confirm Password:-");
-            if(Password.equals(getPassword(System.console())))break;
-            System.out.println("Passwords do not match, Try again");
-        }
-
-        System.out.println("Enter File Name to save your Encrypted Package:-");
-        String OutFileName = scn.nextLine() + ".crypt";
-        byte[] hash;
+    private static void GetPasswordFromUser() {
+        System.out.println("Enter Encryption Password:");
+        char[] pass = EnigmaCLI.getPassword(System.console());
         try {
-            hash = EnigmaCrypto.SHA256(Password);
+            UserPassword = EnigmaCrypto.SHA256(pass);
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-            return;
-        }
-        File[] Set = new File[ToEncrypt.size()];
-        for (int i = 0; i < ToEncrypt.size(); i++) {
-            Set[i] = ToEncrypt.get(i);
-        }
-        System.out.println("Encryption Running with \n Key  = " + toHexString(hash));
-        try {
-            EnigmaFile.EncryptFile( Set,hash,OutFileName);
-        } catch (IOException | NoSuchAlgorithmException e) {
+            //highly unlikely we reach here
             e.printStackTrace();
         }
-
+        Arrays.fill(pass,'\0');
 
     }
 
-    private static void Decrypt() {
-        String DestFileName,CryptFileName,Password;
+    private static void CheckKeyPair() {
+        File kpFile = new File(KeyPairFile);
+        boolean fileGood = true;
+        if(KeypairGenerated){
+            if(!kpFile.exists()){
+                System.out.println("Can not find KeyPair file.");
+                fileGood = false;
+            }
+            if(kpFile.isDirectory()){
+                System.out.println("BAD KeyPair File is Directory");
+                fileGood = false;
+            }
+            if(fileGood){
+                try {
+                    KeyPair kp = EnigmaFile.ReadKeyPair(kpFile,EnigmaCrypto.SHA256(UserPassword));
+                    OurKeyHandler = new EnigmaKeyHandler(kp);
 
-        System.out.println(" Destination Directory:-");
-        DestFileName = scn.nextLine();
-        System.out.println(" Package FileName:-");
-        CryptFileName = scn.nextLine();
-        System.out.println( "Password");
-        //char[] pass = System.console().readPassword();
-        Password = getPassword(System.console());
-        try {
-            byte[] hash = EnigmaCrypto.SHA256(Password);
-            System.out.println("Running Decryption...\n Key = " + toHexString(hash));
-            EnigmaFile.DecryptFile(new File(CryptFileName),DestFileName,hash);
-        } catch (IOException | NoSuchAlgorithmException e) {
-            e.printStackTrace();
+                } catch (IOException | InvalidKeySpecException e) {
+                    System.out.println("Ran into a Error while decrypting KeyPair File");
+                    e.printStackTrace();
+                    System.exit(-1);
+                } catch (NoSuchAlgorithmException e) {
+                    e.printStackTrace();
+                    System.exit(-1);
+                }
+                return;
+            }
+        }else {
+            System.out.println("No KeyPair Has been Generated");
         }
-
+        //Reached here means either no file or bad file or key pair not generated
+        //TODO add option to use existing keypair
+        System.out.println("Would You Like to generate a new Keypair?");
     }
-    public static String getPassword(Console con){
-        String Pass;
-        if(con != null) {
-            char[] ch = System.console().readPassword();
-            Pass = String.valueOf(ch);
-        }else{
-            Pass = scn.nextLine();
+
+    private static void CheckConfigFile() {
+        switch (EnigmaFile.GrabConfig()){
+            case "DNE":
+                System.out.println("Config File Not Found");
+                break;
+            case "CF":
+                System.out.println("Config File Corrupted");
+                System.out.println("This could be cause by bad spelling or capitalization");
+                break;
+            case "IOE":
+                System.out.println("System Experienced an IOException while Reading Config File");
+                System.out.println("This could be cause by bad permissions on the File");
+                break;
+            case "DIR":
+                System.out.println("BAD FILE config.conf is Directory");
+                break;
+            case "OK":
+                return;
         }
-        return Pass;
+        System.out.println("Would you like to Start a Fresh Config File and Registration or exit? (new/exit) ");
+        String resp = scn.nextLine();
+
+        if(!resp.toLowerCase().startsWith("new"))
+            System.exit(-1);
     }
 
 

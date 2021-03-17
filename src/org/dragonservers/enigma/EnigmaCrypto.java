@@ -25,4 +25,12 @@ public class EnigmaCrypto {
     public static byte[] SHA256(String data) throws NoSuchAlgorithmException{
         return SHA256(data.getBytes(StandardCharsets.UTF_8));
     }
+    public static byte[] SHA256(char[] data) throws NoSuchAlgorithmException{
+        byte[] bin = new byte[data.length];
+        for (int i = 0; i < data.length; i++)
+            bin[i] = (byte) data[i];
+        //this Erases the bin data from memory
+        bin = SHA256(bin);
+        return bin;
+    }
 }
