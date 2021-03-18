@@ -4,4 +4,6 @@
 Username:username45
 Registered: true
 KeyPair: true
-#curently only supporting single User later will support multiple Users 
+Server:
+
+#curently only supporting single User later will support multiple Users
