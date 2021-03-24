@@ -18,7 +18,6 @@ import java.security.spec.InvalidKeySpecException;
 public class EnigmaServer {
 
     private Socket sock;
-    private byte[] Secret;
     private final String ServerIP;
     private final int ServerPort;
     public EnigmaServer(String DomainName,int Port)  {
@@ -97,14 +96,14 @@ public class EnigmaServer {
         byte[] lengthEncoded = new byte[4];
         int resp = din.read(lengthEncoded);
         int length =ByteBuffer.wrap(lengthEncoded).getInt();
-        if(resp != -1)
+        if(resp == -1)
             throw new IOException("EOF file Reached Prematurely");
         if(length <= 0)
             throw new IOException("BAD Block Header");
 
         byte[] block = new byte[length];
         resp = din.read(block);
-        if(resp != -1)
+        if(resp == -1)
             throw new IOException("EOF file Reached Prematurely");
         return block;
     }
