@@ -4,6 +4,6 @@
 Username:username45
 Registered: true
 KeyPair: true
-Server:
+Server:<domain-name>
 
 #curently only supporting single User later will support multiple Users

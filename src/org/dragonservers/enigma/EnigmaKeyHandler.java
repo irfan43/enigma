@@ -10,6 +10,7 @@ import java.security.spec.X509EncodedKeySpec;
 
 public class EnigmaKeyHandler {
 
+
     private final KeyPair keyPair;
     public EnigmaKeyHandler(KeyPair KeyPair){
         keyPair = KeyPair;
@@ -28,28 +29,25 @@ public class EnigmaKeyHandler {
     public PublicKey GetPublicKey(){
         return keyPair.getPublic();
     }
-
-    public byte[] GetCommonSecret(PublicKey therePublicKey) throws NoSuchAlgorithmException, InvalidKeyException {
-        KeyAgreement keyAgreement = KeyAgreement.getInstance("DH");
-        keyAgreement.init(keyPair.getPrivate());
-        keyAgreement.doPhase(therePublicKey,true);
-        return keyAgreement.generateSecret();
+    public PrivateKey GetPrivateKey() {
+        return keyPair.getPrivate();
     }
 
-    //STATIC FUNCTION
+
+    //STATIC FUNCTIONS
     public static KeyPair GenerateKeypair() throws NoSuchAlgorithmException {
-        KeyPairGenerator KGen = KeyPairGenerator.getInstance("DH");
-        KGen.initialize(2048);
+        KeyPairGenerator KGen = KeyPairGenerator.getInstance(Enigma.AlgoKey);
+        KGen.initialize(512);
         return KGen.generateKeyPair();
     }
 
     public static PrivateKey PrivateKeyFromEnc(byte[] Encoded) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        KeyFactory PrvKF = KeyFactory.getInstance("DH");
+        KeyFactory PrvKF = KeyFactory.getInstance(Enigma.AlgoKey);
         return PrvKF.generatePrivate(new PKCS8EncodedKeySpec(Encoded));
     }
 
     public static PublicKey PublicKeyFromEnc(byte[] Encoded) throws NoSuchAlgorithmException, InvalidKeySpecException {
-        KeyFactory PubKF = KeyFactory.getInstance("DH");
+        KeyFactory PubKF = KeyFactory.getInstance(Enigma.AlgoKey);
         return PubKF.generatePublic(new X509EncodedKeySpec(Encoded));
     }
     public static KeyPair KeyPairFromEnc(byte[] PublicKeyEncoded,byte[] PrivateKeyEncoded) throws InvalidKeySpecException, NoSuchAlgorithmException {

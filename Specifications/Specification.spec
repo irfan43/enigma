@@ -70,6 +70,49 @@ server-Structure
 
 //old code
 /*
+    private static void TestTyping(){
+        //tests the typing notification
+        String[] messages = new String[]{
+                "Hey " ,
+                "Enigma Messaging Services" ,
+                "this is a demo of the typing notification on the CLI interface on" ,
+                "Let me know if there are any problems u have with the interface or improvements u can make " ,
+                "Thanks Indus" };
+        String User = "indus";
+
+        for (int i = 0; i < messages.length; i++) {
+            String Msg = PrintBlock(Arrays.copyOfRange(messages,0,i),User);
+            for (int j = 0; j < 5; j++) {
+                TypingAnimation(Msg,User);
+            }
+        }
+    }
+
+    private static void TypingAnimation(String msg,String User) {
+            EnigmaCLI.CLS();
+            System.out.print(msg);
+            System.out.print("[" + User + "]" + "Typing");
+            for (int j = 0; j < 3; j++) {
+                System.out.print(".");
+                try {
+                    Thread.sleep(70);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
+    }
+    private static String PrintBlock(String[] messages, String user) {
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < messages.length; i++)
+            sb.append(PrintMessage(user,messages[i] ));
+        return sb.toString();
+    }
+    private static String PrintMessage(String username,String msg){
+       return ("[" + username + "]" + msg + "\n");
+    }
+*/
+/*
 	  private static void EncryptFileCLI() {
 		  System.out.println("Decrypt or Encrypt? (D/E)");
 		  String s = scn.nextLine();
@@ -344,3 +387,24 @@ server-Structure
 	  }
 
   */
+/*
+try {
+            Signature sign = Signature.getInstance("SHA256withRSA");
+            KeyPair kp = EnigmaKeyHandler.GenerateKeypair();
+            sign.initSign(kp.getPrivate());
+            sign.update(EnigmaCrypto.SHA256("Magicaly"));
+            byte[] sgn = sign.sign();
+
+            Signature verSign = Signature.getInstance("SHA256withRSA");
+            verSign.initVerify(kp.getPublic());
+            verSign.update(EnigmaCrypto.SHA256("Magicaly"));
+            boolean good = verSign.verify(sgn);
+            if(good){
+                System.out.println("Good Sign");
+            }else {
+                System.out.println("Bad Sign");
+            }
+        } catch (NoSuchAlgorithmException | InvalidKeyException | SignatureException e) {
+            e.printStackTrace();
+        }
+*/

@@ -80,7 +80,7 @@ public class EnigmaEncryptionCLI {
 		for (int i = 0; i < ToEncrypt.size(); i++) {
 			Set[i] = ToEncrypt.get(i);
 		}
-		System.out.println("Encryption Running with \n Key  = " + Enigma.toHexString(hash));
+		System.out.println("Encryption Running with \n Key  = " + EnigmaCLI.toHexString(hash));
 		try {
 			EnigmaFile.EncryptFile( Set,hash,OutFileName);
 		} catch (IOException | NoSuchAlgorithmException e) {
@@ -104,7 +104,7 @@ public class EnigmaEncryptionCLI {
 		try {
 			byte[] hash = EnigmaCrypto.SHA256(Password);
 			Arrays.fill(Password,'\0');
-			System.out.println("Running Decryption...\n Key = " + Enigma.toHexString(hash));
+			System.out.println("Running Decryption...\n Key = " + EnigmaCLI.toHexString(hash));
 			EnigmaFile.DecryptFile(new File(CryptFileName),DestFileName,hash);
 		} catch (IOException | NoSuchAlgorithmException e) {
 			e.printStackTrace();

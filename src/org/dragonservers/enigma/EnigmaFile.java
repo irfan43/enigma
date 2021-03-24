@@ -20,13 +20,20 @@ public class EnigmaFile {
     public static byte[] VersionCode = new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
     private static final String[] configFileValues = {"Username","Registered","Keypair"};
 
-
+    public static void MKDIR(String file) throws IOException {
+        MKDIR(new File(file));
+    }
+    public static void MKDIR(File file) throws IOException {
+        if(!file.isDirectory())
+            throw new FileNotFoundException("Given File is not a Directory");
+        if(!file.mkdirs())
+            throw new IOException("Could not create the Directory or parent directory");
+    }
     public static void readBytes(BufferedInputStream bis,byte[] block) throws IOException {
         int eof = bis.read(block);
         if(eof == -1)
             throw new IOException("Reached End Of File Prematurely");
     }
-
     // Reading and Writing to KeyPair
     //Reading
     public static KeyPair ReadKeyPair(File Filename,byte[] key) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
@@ -169,7 +176,6 @@ public class EnigmaFile {
         // calculate the hash
         byte[] sha256 = md.digest();
         bos.write(sha256);
-        System.out.println( " hash = "  + Enigma.toHexString(sha256));
         bos.close();
 
     }
@@ -348,7 +354,7 @@ public class EnigmaFile {
         return bin;
     }
 
-
+    //Functions for handling Config Files
     public static String GrabConfig() {
 
         File configFile = new File(Enigma.ConfigFileName);
@@ -357,6 +363,8 @@ public class EnigmaFile {
             return "DNE";
         if(configFile.isDirectory())
             return "DIR";
+        if(!configFile.canRead())
+            return "NRP";//No Read Privilege
 
         //all good try Reading the file
         String[] Ans =  new String[configFileValues.length];
@@ -398,7 +406,6 @@ public class EnigmaFile {
 
         return "OK";
     }
-
     private static String GetValue(String line, char separator) {
         int sepLoc = -1;
         for (int i = 0; i < line.length(); i++) {
@@ -409,5 +416,31 @@ public class EnigmaFile {
         }
         if(sepLoc == -1)return null;
         return line.substring(sepLoc + 1); //Magic:Check gives 5
+    }
+    public static String PushConfig(){
+        File config = new File(Enigma.ConfigFileName);
+
+        if(config.isDirectory())
+            return "DIR";
+        if(!config.canWrite())
+            return "NWP"; //No Write Privilege
+        String[] Ans = new String[configFileValues.length];
+
+        Ans[0] = Enigma.Username;
+        Ans[1] = (Enigma.Registered) ? "true" : "false";
+        Ans[2] = (Enigma.KeypairGenerated) ? "true" : "false";
+
+        try {
+            FileWriter fw = new FileWriter(config);
+            BufferedWriter bw = new BufferedWriter(fw);
+            //TODO add a comment to the config file declaring the time and date and the warning not to edit as well as a version etc
+            for (int i = 0; i < configFileValues.length; i++) {
+                bw.write(configFileValues[i] + ":" + Ans[i]);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "IOE";
+        }
+        return "OK";
     }
 }
