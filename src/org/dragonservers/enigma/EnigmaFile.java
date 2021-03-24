@@ -24,10 +24,13 @@ public class EnigmaFile {
         MKDIR(new File(file));
     }
     public static void MKDIR(File file) throws IOException {
-        if(!file.isDirectory())
-            throw new FileNotFoundException("Given File is not a Directory");
-        if(!file.mkdirs())
-            throw new IOException("Could not create the Directory or parent directory");
+        if(file.exists()){
+            if(!file.isDirectory())
+                throw new FileNotFoundException("Given File is not a Directory");
+        }else {
+            if (!file.mkdirs())
+                throw new IOException("Could not create the Directory or parent directory for " + file.getCanonicalPath());
+        }
     }
     public static void readBytes(BufferedInputStream bis,byte[] block) throws IOException {
         int eof = bis.read(block);
@@ -71,7 +74,7 @@ public class EnigmaFile {
     }
     public static void SaveKeyPair(File Filename,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, NoSuchAlgorithmException {
         byte[] bin = GetBinFromKeypair(keyPair);
-        MessageDigest md = MessageDigest.getInstance("SHA256");
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
         md.update(bin);
         if(key != null) bin = EnigmaCrypto.Encrypt(bin,key);
 
@@ -84,7 +87,7 @@ public class EnigmaFile {
         bos.write(KeyPairSignature);
         bos.write(bin);
         bos.write(md.digest());
-
+        bos.close();
     }
 
     private static byte[] GetBinFromKeypair(KeyPair keyPair){
@@ -420,6 +423,16 @@ public class EnigmaFile {
     public static String PushConfig(){
         File config = new File(Enigma.ConfigFileName);
 
+        if(!config.exists()){
+            try {
+                if(!config.createNewFile()){
+                    return "CNC";
+                }
+            } catch (IOException e) {
+                return "IOE";
+            }
+        }
+
         if(config.isDirectory())
             return "DIR";
         if(!config.canWrite())
@@ -437,6 +450,7 @@ public class EnigmaFile {
             for (int i = 0; i < configFileValues.length; i++) {
                 bw.write(configFileValues[i] + ":" + Ans[i]);
             }
+            bw.close();
         } catch (IOException e) {
             e.printStackTrace();
             return "IOE";

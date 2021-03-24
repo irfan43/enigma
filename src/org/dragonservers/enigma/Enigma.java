@@ -141,6 +141,14 @@ public class Enigma {
         System.out.println("Private:-");
         System.out.println(EnigmaCLI.toHexString(kp.getPrivate().getEncoded()));
         System.out.println("Save? (y/n)");
+
+        String resp = scn.nextLine();
+        if(resp.toLowerCase().startsWith("y")){
+
+        }else {
+
+        }
+
         EnigmaCLI.CLS();
         try {
             if(kpFile.exists()){
@@ -207,6 +215,9 @@ public class Enigma {
             case "IOE" -> {
                 System.out.println("[ERROR] Ran Into a IO Exception While Trying to save Config File\nQuiting...");
                 System.exit(-1);
+            }
+            case "CNC" -> {
+                System.out.println("[ERROR]Can not Create Config File \nChange Read Write Privilege and try again\nQuiting..");
             }
             case "OK" -> System.out.println("Config Saved");
         }
