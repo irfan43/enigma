@@ -68,7 +68,7 @@ public class EnigmaFile {
         byte[] CalculatedHash = md.digest();
         if(!Arrays.equals(CalculatedHash,hash))
             throw new IOException("BAD HASH");
-
+        bis.close();
         return EnigmaKeyHandler.KeyPairFromEnc(keysEnc.get(0),keysEnc.get(1));
     }
     //Writing
@@ -84,8 +84,7 @@ public class EnigmaFile {
 
         if(Filename.exists() && !OverWrite)
             throw new FileNotFoundException("File Already Exists");
-        if(!Filename.exists())
-            MKDIR(Filename.getParentFile());
+        MKDIR(Filename.getParentFile());
 
         FileOutputStream fos = new FileOutputStream(Filename);
         BufferedOutputStream bos = new BufferedOutputStream(fos);
