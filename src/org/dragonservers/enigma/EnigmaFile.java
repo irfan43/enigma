@@ -15,9 +15,14 @@ import java.util.List;
 public class EnigmaFile {
 
     //Constants                             //(byte) 78,(byte) e6,(byte) 42,(byte) 06,(byte) d8,(byte) 00,(byte) 0f,(byte) eb
-    final static byte[] KeyPairSignature = new byte[]{ (byte) 0x78,(byte) 0xe6,(byte) 0x42,(byte) 0x06,(byte) 0xd8,(byte) 0x00,(byte) 0x0f,(byte) 0xeb};
-    final static byte[] EncryptionSignature = new byte[]{ (byte)0x1d,(byte)0x08,(byte)0x14, (byte)0x0e,(byte)0x17,(byte)0x06,(byte)0x13,(byte)0x36};
-    public static byte[] VersionCode = new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
+    final static byte[] KeyPairSignature =
+            new byte[]{ (byte)0x78,(byte)0xe6,(byte)0x42,(byte)0x06,(byte)0xd8,(byte)0x00,(byte)0x0f,(byte)0xeb};
+    final static byte[] KeyListSignature =
+            new byte[]{ (byte)0x41,(byte)0x4D,(byte)0x54,(byte)0x75,(byte)0x72,(byte)0x69,(byte)0x6e,(byte)0x67};
+    final static byte[] EncryptionSignature =
+            new byte[]{ (byte)0x1d,(byte)0x08,(byte)0x14,(byte)0x0e,(byte)0x17,(byte)0x06,(byte)0x13,(byte)0x36};
+    public static byte[] VersionCode =
+            new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
     private static final String[] configFileValues = {"Username","Registered","Keypair"};
 
     public static void MKDIR(String file) throws IOException {
@@ -61,7 +66,7 @@ public class EnigmaFile {
         readBytes(bis,hash);
 
         byte[] CalculatedHash = md.digest();
-        if(Arrays.equals(CalculatedHash,hash))
+        if(!Arrays.equals(CalculatedHash,hash))
             throw new IOException("BAD HASH");
 
         return EnigmaKeyHandler.KeyPairFromEnc(keysEnc.get(0),keysEnc.get(1));
@@ -102,21 +107,88 @@ public class EnigmaFile {
     }
 
     //Reading and Writing a list of keys
-    public static List<PublicKey> GetKeyList(String Filename,byte[] key) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
-        return getKeyList(EnigmaCrypto.Encrypt(Files.readAllBytes(Paths.get(Filename)),key));
+
+    public static List<PublicKey> ReadKeyList(String Filename) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
+        return ReadKeyList(new File(Filename));
     }
-    public static List<PublicKey> GetKeyList(String Filename) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
-        return getKeyList(Files.readAllBytes(Paths.get(Filename)));
-    }
-    private static List<PublicKey> getKeyList(byte[] bin) throws InvalidKeySpecException, NoSuchAlgorithmException {
+    public static List<PublicKey> ReadKeyList(File file) throws InvalidKeySpecException, NoSuchAlgorithmException, IOException {
+        if(!file.exists())
+            throw new FileNotFoundException("Key List File Not Found");
+        if(file.isDirectory())
+            throw new FileNotFoundException("Key List File is Directory");
+
+        byte[] signiture = new byte[8];
+
+        FileInputStream fis = new FileInputStream(file);
+        BufferedInputStream bis = new BufferedInputStream(fis);
+
+        //Read the first 8 bytes and check the signiture
+        readBytes(bis,signiture);
+        if(Arrays.equals(signiture,KeyListSignature))
+            throw new IOException("BAD Key List Exceptions");
+
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        //Grab the number of keys present in this file
+        int nKeys = GetBufferedInt(bis,md);
+
+        //Grab the public key
         List<PublicKey> listPBK = new ArrayList<>();
-        List<byte[]> listOfBlocks = SplitBlocks(bin);
-        for(byte[] block:listOfBlocks)
-            listPBK.add(EnigmaKeyHandler.PublicKeyFromEnc(block));
+        for (int i = 0; i < nKeys; i++)
+            listPBK.add(GrabKey(bis,md));
+
+        byte[] hash = new byte[32];
+        readBytes(bis,hash);
+
+        if(!Arrays.equals(hash,md.digest()))
+            throw new IOException("BAD HASH");
+
         return listPBK;
     }
+    private static PublicKey GrabKey(BufferedInputStream bis,MessageDigest md) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
+        int len = GetBufferedInt(bis, md);
+        if(len <= 0)
+            throw new IOException("BAD BLOCK Length");
 
-    //block splitting
+        byte[] bin = new byte[len];
+        readBytes(bis,bin);
+        return EnigmaKeyHandler.PublicKeyFromEnc(bin);
+    }
+    private static int GetBufferedInt(BufferedInputStream bis,MessageDigest md) throws IOException {
+        byte[] lenEnc = new byte[4];
+        readBytes(bis,lenEnc);
+        if(md != null)md.update(lenEnc);
+        return ByteBuffer.wrap(lenEnc).getInt();
+    }
+    public static void SaveKeyList(File Filename,List<PublicKey> publicKeys) throws IOException, NoSuchAlgorithmException {
+
+        if(Filename.isDirectory())
+            throw new FileNotFoundException("Given File is a Directory");
+
+        MKDIR(Filename.getParentFile());
+
+        PublicKey[] ToSave = (PublicKey[]) publicKeys.toArray();
+        FileOutputStream fos = new FileOutputStream(Filename);
+        BufferedOutputStream bos = new BufferedOutputStream(fos);
+
+        bos.write(KeyListSignature);
+
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+
+        byte[] LenEnc = ByteBuffer.allocate(4).putInt(ToSave.length).array();
+        bos.write(LenEnc);
+        md.update(LenEnc);
+
+        for(PublicKey pbk: ToSave) {
+            byte[] block = GetBlock(pbk.getEncoded());
+            bos.write(block);
+            md.update(block);
+        }
+
+        //Write the sha256 hash
+        bos.write(md.digest());
+
+        bos.close();
+    }
     public static byte[] GetBlock(byte[] bin){
         //throw exception for blocks larger then 1mb
         if(bin.length > 1048576)throw new IllegalArgumentException("unbuffered Block Size Exceeded Maximum size");

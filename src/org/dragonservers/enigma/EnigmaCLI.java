@@ -2,6 +2,8 @@ package org.dragonservers.enigma;
 
 import java.io.Console;
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 public class EnigmaCLI {
 	public static final String ANSI_CLS = "\u001b[2J";
