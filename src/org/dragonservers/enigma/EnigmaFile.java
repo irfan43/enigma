@@ -66,7 +66,6 @@ public class EnigmaFile {
 
         return EnigmaKeyHandler.KeyPairFromEnc(keysEnc.get(0),keysEnc.get(1));
     }
-
     //Writing
     //Master Function
     public static void SaveKeyPair(String Filename,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, NoSuchAlgorithmException {
@@ -80,6 +79,8 @@ public class EnigmaFile {
 
         if(Filename.exists() && !OverWrite)
             throw new FileNotFoundException("File Already Exists");
+        if(!Filename.exists())
+            MKDIR(Filename.getParentFile());
 
         FileOutputStream fos = new FileOutputStream(Filename);
         BufferedOutputStream bos = new BufferedOutputStream(fos);
@@ -446,9 +447,10 @@ public class EnigmaFile {
         try {
             FileWriter fw = new FileWriter(config);
             BufferedWriter bw = new BufferedWriter(fw);
-            //TODO add a comment to the config file declaring the time and date and the warning not to edit as well as a version etc
+            bw.write( "#" + "Enigma Version " + Enigma.EnigmaVersion + "\n");
+            bw.write("# NOT INTENDED FOR USER EDITING, TO Change Settings Go Through Software Interface" + "\n");
             for (int i = 0; i < configFileValues.length; i++) {
-                bw.write(configFileValues[i] + ":" + Ans[i]);
+                bw.write(configFileValues[i] + ":" + Ans[i] + "\n");
             }
             bw.close();
         } catch (IOException e) {
