@@ -37,6 +37,10 @@ public class EnigmaServer {
 
         //Response code
         String ResponseCode = ReadBlockLine(dis);
+        if(!ResponseCode.equals("GOOD")){
+            throw new IOException("Bad Server Response:- \"" + ResponseCode + "\"");
+        }
+
         byte[] publicKeyEnc = ReadBlock(dis);
 
         return EnigmaKeyHandler.PublicKeyFromEnc(publicKeyEnc);

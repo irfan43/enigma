@@ -520,6 +520,7 @@ public class EnigmaFile {
             BufferedWriter bw = new BufferedWriter(fw);
             bw.write( "#" + "Enigma Version " + Enigma.EnigmaVersion + "\n");
             bw.write("# NOT INTENDED FOR USER EDITING, TO Change Settings Go Through Software Interface" + "\n");
+            bw.write("# Updated on " + EnigmaTime.GetFormattedTime() + "\n");
             for (int i = 0; i < configFileValues.length; i++) {
                 bw.write(configFileValues[i] + ":" + Ans[i] + "\n");
             }

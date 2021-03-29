@@ -2,8 +2,6 @@ package org.dragonservers.enigma;
 
 import java.io.Console;
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 
 public class EnigmaCLI {
 	public static final String ANSI_CLS = "\u001b[2J";
@@ -13,12 +11,12 @@ public class EnigmaCLI {
 	public static final String ANSI_REVERSEON = "\u001b[7m";
 	public static final String ANSI_NORMAL = "\u001b[0m";
 	public static final String ANSI_WHITEONBLUE = "\u001b[37;44m";
-	public static final boolean Iswindows = System.getProperty("os.name").contains("Windows");
+	public static final boolean IsWindows = System.getProperty("os.name").contains("Windows");
 
 
 	public static void CLS(){
 
-		if(Iswindows){
+		if(IsWindows){
 			try {
 				new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
 			} catch (InterruptedException | IOException e) {

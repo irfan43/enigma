@@ -14,15 +14,15 @@ List of Gets
 		GET PBK
 	Returns
 		[Server PublicKey]
-		
+
 -Registration
-		ENC
-		RGS
-		registration-code:"aczs-wids-asdi-qwed"
+		[ENC]
+		[RGS]
+		[registration-code:"aczs-wids-asdi-qwed"
 		Username:"<Username>"
 		Password:"<password-hash>"
 		PublicKey:[PublicKey]
-		sha256:[hash]
+		sha256:[hash]]
 		//TODO Randomize input to make reversing key difficult
 
 	Returns
@@ -35,11 +35,11 @@ List of Gets
 		CUR PBK  //corrupted
 -Get Session ID
 		ENC
-		GET SESID
+		[GET SESID
 		Username:"<Username>"
 		PublicKey:[PublicKey]
 		Password:"<password-hash>" //todo change later to send hash of the HASH
-		Expires:<UTC TIME> //not required
+		Expires:<UTC TIME> //not required]
 	return
 		GOOD / Bad Credential // depending on if the
 		SessionID:"" //64 Characters upper and lower case random string
@@ -47,11 +47,12 @@ List of Gets
 
 -Get Inbox Available
 		ENC
-		GET INBOX
-		SessionID:""
+		[GET INBOX
+		SessionID:""]
 	return
-		[number of packets available]
-		[list of first 64 packets available to you]
+		["GOOD"]
+		[number of packets available
+		list of first 64 packets available to you]
 		//note not that actual packet just the id of the packet and the from addresses
 		//PacketID-32-Char+PublicKeyEnc
 		//TODO add options to filter by username/PBK
@@ -74,7 +75,7 @@ List of commands
 -Get Inbox Available
 -Get Packet
 -Send Packet
--Expire Session
+-Logout Session
 -Get History  //ip login history
 
 //later
@@ -96,3 +97,15 @@ Unencrypted block first 4 bytes length followed by Data
 
 Encrypted block first 4 bytes Unencrypted length
 followed by data
+
+Name:Magic
+SessionID:Purple
+Color:alpha24
+Username:pickles
+Apple:true
+Organisation:none
+MagicApple:nothingPresent
+Bears:12
+Cookie:none
+Dogs:dislike
+Cats:Like

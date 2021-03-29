@@ -5,10 +5,10 @@ import java.util.Date;
 
 public class EnigmaTime {
 
-	public String GetFormattedTime(){
+	public static String GetFormattedTime(){
 		return GetFormattedTime("yyyy-MM-dd HH:mm:ss");
 	}
-	public String GetFormattedTime(String Format)throws IllegalArgumentException{
+	public static String GetFormattedTime(String Format)throws IllegalArgumentException{
 		SimpleDateFormat sdfDate = new SimpleDateFormat(Format);//dd/MM/yyyy
 		Date now = new Date();
 		return sdfDate.format(now);
