@@ -1,7 +1,5 @@
 server
 
-	Highground Public Key #F45A
-		[]->#INDUS {signed by Highground}{reached server time }{server signed}
 
 Encrypting a file,
 	a .crypt file holds the list of files present with in it self
@@ -48,9 +46,6 @@ function/commands
 	return_inbox
 
 
-client File Structure
-
-keys/<Username>KeyDatabase.kdb
 
 
 
@@ -64,9 +59,6 @@ server-Structure
 
 
 
-
-#comunication protocol
-<4byte integer length> <CMD/Req-ID>
 
 //old code
 /*

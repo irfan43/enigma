@@ -7,6 +7,11 @@ Single block
 //Headers first line of any request should follow the format
 
 
+//generic errors
+BAD Headers
+BAD Server Error
+//here bad or good doesn't imply if the request was good, instead it implies if the returned data is good
+
 [enigma \ 1.00]
 
 List of Gets
@@ -14,32 +19,38 @@ List of Gets
 		GET PBK
 	Returns
 		[Server PublicKey]
-
 -Registration
 		[ENC]
-		[RGS]
-		[registration-code:"aczs-wids-asdi-qwed"
-		Username:"<Username>"
-		Password:"<password-hash>"
-		PublicKey:[PublicKey]
-		sha256:[hash]]
+		  [PublicKey ECDH]->
+		<-[Server ECDH PublicKey][signature]
+		<-["GOOD KEYX"] | ["BAD KEYX"] | ["BAD KEYX SERVER_SIGN_ERROR"]
+		[RGS]->
+		[
+		registration-code:"aczs-wids-asdi-qwed"
+		username:"<Username>"
+		password:"<password-hash>"
+		publickey: PublicKey base64 encoded
+		//sha256:[hash]
+		]
 		//TODO Randomize input to make reversing key difficult
 
 	Returns
 		Success Code / Error Code
-		//GOOD
+		GOOD
 		BAD HASH
-		BAD CODE
-		BAD USERNAME
-		BAD PBK
-		CUR PBK  //corrupted
--Get Session ID
+		BAD CODE DOES_NOT_EXIST || INVALID_OR_EXPIRED
+		BAD USERNAME NAME_ALREADY_EXIST || INVALID_NAME
+		BAD PUBLIC_KEY INVALID_FORMAT || INVALID_KEY_SPEC || KEY_ALREADY_EXIST
+		BAD PASSWORD INVALID_FORMAT
+-Get Session ID Equivalent to a login request
 		ENC
-		[GET SESID
-		Username:"<Username>"
+		[
+		GET SESID
 		PublicKey:[PublicKey]
 		Password:"<password-hash>" //todo change later to send hash of the HASH
-		Expires:<UTC TIME> //not required]
+		headerUTC: Long encoded base 64 //this is made to string then Binary then placed before the password hash and rehashed
+		headerSign:<base 64 signature> //TODO
+		]
 	return
 		GOOD / Bad Credential // depending on if the
 		SessionID:"" //64 Characters upper and lower case random string
@@ -47,8 +58,11 @@ List of Gets
 
 -Get Inbox Available
 		ENC
-		[GET INBOX
-		SessionID:""]
+		[
+		GET INBOX
+		PublicKey:[]
+		SessionID:""
+		]
 	return
 		["GOOD"]
 		[number of packets available
@@ -57,13 +71,13 @@ List of Gets
 		//PacketID-32-Char+PublicKeyEnc
 		//TODO add options to filter by username/PBK
 -Get Packet
-	ENC
-	GET PACKET
-	PacketID:"ID"
-	SessionID:"sessionid"
-returns
-	GOOD / BAD Credential / BAD PacketID
-	[PACKET DATA]
+		ENC
+		GET PACKET
+		publickey:[]
+		SessionID:"sessionid"
+	returns
+		GOOD / BAD Credential / BAD PacketID
+		[PACKET DATA]
 
 -Send PACKET
 	ENC
@@ -97,15 +111,3 @@ Unencrypted block first 4 bytes length followed by Data
 
 Encrypted block first 4 bytes Unencrypted length
 followed by data
-
-Name:Magic
-SessionID:Purple
-Color:alpha24
-Username:pickles
-Apple:true
-Organisation:none
-MagicApple:nothingPresent
-Bears:12
-Cookie:none
-Dogs:dislike
-Cats:Like

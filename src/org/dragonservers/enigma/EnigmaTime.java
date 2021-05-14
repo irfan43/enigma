@@ -13,4 +13,7 @@ public class EnigmaTime {
 		Date now = new Date();
 		return sdfDate.format(now);
 	}
+	public static long GetUnixTime(){
+		return System.currentTimeMillis() / 1000L;
+	}
 }
