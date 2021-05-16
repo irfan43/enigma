@@ -15,7 +15,7 @@ public class EnigmaKeyHandler {
     public EnigmaKeyHandler(KeyPair KeyPair){
         keyPair = KeyPair;
     }
-    public EnigmaKeyHandler(File KeyPairFile, String Password) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+    public EnigmaKeyHandler(File KeyPairFile, String Password) throws GeneralSecurityException, IOException {
         if(KeyPairFile.exists()){
             //read the file
             keyPair = EnigmaFile.ReadKeyPair(KeyPairFile,EnigmaCrypto.SHA256(Password));

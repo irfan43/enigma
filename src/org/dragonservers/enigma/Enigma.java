@@ -1,6 +1,9 @@
 package org.dragonservers.enigma;
 
 import java.io.*;
+import java.net.ConnectException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.*;
@@ -10,10 +13,11 @@ public class Enigma {
 
     // Interface Objects
     public static EnigmaKeyHandler OurKeyHandler;
-    public static EnigmaServer TuringConnection;
+    public static EnigmaServerConnection TuringConnection;
+    public static PublicKey ServerPublicKey;
 
     //State Variables
-    public static byte[] UserPassword;
+    public static byte[] UserPassword,LoginPassword;
     public static boolean Registered = false,KeypairGenerated= false;
     public static String Username;
     //These Variables are configuration
@@ -24,23 +28,53 @@ public class Enigma {
     public final static String EnigmaVersion = "1.00";
 
     public static void main(String[] args) {
-        System.out.println("Enigma " + EnigmaVersion + "\nMade By Indus");
+        System.out.println("Enigma " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
         //Start of Enigma
         if(args.length != 0){
-            //handle any arguments that come up
+            //TODO handle any arguments that come up
             System.out.println("Command Line Arguments Not Yet supported ");
         }
-        TuringConnection = new EnigmaServer(ServerDomainName, ServerPort);
         CheckConfigFile();
-        GetPasswordFromUser();
+
+        System.out.println("Enter Encryption Password:-");
+        UserPassword = GetPasswordFromUser();
         CheckKeyPair();
+        //We have a config File Password and KeyPair
+        TuringConnection = new EnigmaServerConnection(ServerDomainName, ServerPort);
         CheckRegistration();
+
+
 
     }
 
-    private static void CheckRegistration() {
+    private static void CheckRegistration(){
+        //TODO clean this garbage code for server public key
         File ServerPBKFile = new File(ServerPublicKeyFile);
-        if(!ServerPBKFile.exists()){
+        if(ServerPBKFile.exists()) {
+            byte[] ServerPBKEnc = new byte[0];
+            try {
+                ServerPBKEnc = Files.readAllBytes(Path.of(ServerPublicKeyFile));
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.out.println("Ran into IO exception While Reading ServerPublicKey File");
+                System.exit(-1);
+            }
+            try {
+                PublicKey pbk = EnigmaKeyHandler.PublicKeyFromEnc(ServerPBKEnc);
+                if(pbk != null){
+                    ServerPublicKey = pbk;
+                    System.out.println("Running With Server Public Key:-");
+                    System.out.println("Hex:-");
+                    System.out.println(EnigmaCLI.toHexString(pbk.getEncoded()));
+                    System.out.println("SHA256 Hash:-");
+                    System.out.println(EnigmaCLI.toHexString(EnigmaCrypto.SHA256(pbk.getEncoded())));
+                }
+            }catch (GeneralSecurityException e){
+                System.out.println("Error while Reading Stored Server Public Key");
+                System.exit(0);
+            }
+        }else {
+            System.out.println("No Server Public Key can be found ");
             GetServerPublicKey();
         }
         if(!Registered)
@@ -48,48 +82,94 @@ public class Enigma {
 
     }
     public static void GetServerPublicKey(){
-        System.out.println("No Server Public Key can be found ");
         System.out.println("Would you like to Get the Public key from the Server?(y/n)");
         String resp = scn.nextLine();
-        if(resp.toLowerCase().startsWith("y")){
-            PublicKey ServerPbk;
-            try {
-                ServerPbk = TuringConnection.GetPublicKey();
-                byte[] hash = EnigmaCrypto.SHA256(ServerPbk.getEncoded());
-                System.out.println("Got Key As :-");
-                System.out.println(EnigmaCLI.toHexString(ServerPbk.getEncoded()));
-                System.out.println("SHA-256:-");
-                System.out.println(EnigmaCLI.toHexString(hash));
-                System.out.println("Would you like this Save This Key?(yes/no)");
-                resp = scn.nextLine();
-                if(!resp.toLowerCase().startsWith("y")){
-                    System.out.println("Can not run Securely without Server Public Key");
-                    System.out.println("quiting...");
-
-                }
-            } catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
-                e.printStackTrace();
-                System.exit(0);
-            }
-        }else{
+        if(!resp.toLowerCase().startsWith("y")) {
             System.out.println("Repair the Server Public Key\nQuiting...");
             System.exit(0);
         }
+        PublicKey ServerPbk = null;
+        try {
+            ServerPbk = TuringConnection.GetPublicKey();
+            byte[] hash = EnigmaCrypto.SHA256(ServerPbk.getEncoded());
+            System.out.println("Got Key As :-");
+            System.out.println(EnigmaCLI.toHexString(ServerPbk.getEncoded()));
+            System.out.println("SHA-256:-");
+            System.out.println(EnigmaCLI.toHexString(hash));
+            System.out.println("Would you like this Save This Key?(yes/no)");
+            resp = scn.nextLine();
+            if(!resp.toLowerCase().startsWith("y")) {
+                System.out.println("Can not run Securely without Server Public Key");
+                System.out.println("quiting...");
+                System.exit(0);
+            }
+        } catch (ConnectException e){
+            System.out.println("Server Refused to Connect");
+        } catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            System.exit(0);
+        }
+        ServerPublicKey = ServerPbk;
+
+    }
+    private static byte[] VerifyGetPassword() throws NoSuchAlgorithmException {
+        char[] hash = new char[0];
+        while (true){
+            char[] Password2;
+            System.out.println("Enter Password:-");
+            hash = EnigmaCLI.getPassword(System.console());
+            System.out.println("Confirm Password:-");
+            Password2 = EnigmaCLI.getPassword(System.console());
+            if(Arrays.equals(hash,Password2)){
+                Arrays.fill(Password2,'\0');
+                break;
+            }
+            System.out.println("Passwords do not match, Try again");
+        }
+        return EnigmaCrypto.SHA256(hash);
     }
     private static void RegisterUser() {
-        System.out.println("Would you like to start a Registration Request with the server");
+        System.out.println("You are yet to register \nWould you like to start a Registration Request with the server?(yes/no)");
+        String resp = scn.nextLine();
+        if(!resp.toLowerCase().startsWith("y")){
+            System.out.println("Please Start Again When Want to Register");
+            System.out.println("Quitting...");
+            System.exit(0);
+        }
+        System.out.println("\tLogin Password");
+        try {
+            LoginPassword = VerifyGetPassword();
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        }
+        Registered = true;
+        System.out.println("Enter Registration Code:-");
+        String rgCode = scn.nextLine();
+        try {
+            TuringConnection.RegisterUser(rgCode,OurKeyHandler,LoginPassword);
+        } catch (IOException | GeneralSecurityException e) {
+            System.out.println("Error while communicating with server");
+            e.printStackTrace();
+            //TODO retry
+            System.exit(-1);
+        }
     }
-    private static void GetPasswordFromUser() {
-        System.out.println("Enter Encryption Password For Keypair:");
+    private static byte[] GetPasswordFromUser() {
+        byte[] hash = new byte[0];
+
         char[] pass = EnigmaCLI.getPassword(System.console());
         try {
-            UserPassword = EnigmaCrypto.SHA256(pass);
+            hash = EnigmaCrypto.SHA256(pass);
         } catch (NoSuchAlgorithmException e) {
             //highly unlikely we reach here
             e.printStackTrace();
+            Arrays.fill(pass,'\0');
+            System.exit(-1);
+        }finally {
+            Arrays.fill(pass,'\0');
         }
-        Arrays.fill(pass,'\0');
-
+        return hash;
     }
     private static void CheckKeyPair() {
         File kpFile = new File(KeyPairFile);
@@ -109,11 +189,11 @@ public class Enigma {
                     OurKeyHandler = new EnigmaKeyHandler(kp);
 
                 } catch (IOException | InvalidKeySpecException e) {
-                    //TODO handle bad password better
-                    System.out.println("Ran into a Error while decrypting KeyPair File\nQuiting..");
+                    //TODO handle bad password
+                    System.out.println("Ran into a Error while decrypting KeyPair File\nFile maybe Corrupted or password maybe wrong \nQuiting..");
                     e.printStackTrace();
                     System.exit(-1);
-                } catch (NoSuchAlgorithmException e) {
+                } catch (GeneralSecurityException e) {
                     e.printStackTrace();
                     System.exit(-1);
                 }
@@ -133,7 +213,7 @@ public class Enigma {
         }
         CLIGenKeyPair();
     }
-    private static void CLIGenKeyPair(){
+    private static void CLIGenKeyPair()  {
         File kpFile = new File(KeyPairFile);
         System.out.println("Generating New KeyPair");
         KeyPair kp = null;
@@ -144,7 +224,7 @@ public class Enigma {
             System.exit(-2);
         }
         if(kp == null){
-            System.out.println("Failed to Generate KeyPair\nQuiting");
+            System.out.println("Failed to Generate KeyPair due to unknown reason\nQuiting");
             System.exit(-1);
         }
         System.out.println("Got KeyPair:-");
@@ -152,16 +232,16 @@ public class Enigma {
         System.out.println(EnigmaCLI.toHexString(kp.getPublic().getEncoded()));
         System.out.println("Private:-");
         System.out.println(EnigmaCLI.toHexString(kp.getPrivate().getEncoded()));
-        System.out.println("Save? (yes/no)");
+        System.out.println("Please save this else where \nin the event the encryption password is forgotten or some other IO ERROR occurs\nSave This Key? (yes/no)");
 
         String resp = scn.nextLine();
         EnigmaCLI.CLS();
-        System.out.println("Screen Cleared to Hide Key");
+        System.out.println("Screen Cleared to Hide Keys");
         if(!resp.toLowerCase().startsWith("y")){
             System.out.println("Can Not Run Without KeyPair");
             System.out.println("Either Generate a KeyPair or Correct the KeyPair File");
             System.out.println("Quiting...");
-            System.exit(-1);
+            System.exit(0);
         }
         try {
             if(kpFile.exists()){
@@ -171,7 +251,7 @@ public class Enigma {
                     System.out.println("Quiting...");
                     System.exit(0   );
                 }
-                System.out.print("Type \"overwrite\" to Confirm Overwriting the KeyPair File:-");
+                System.out.print("Type \"overwrite\" to Confirm Overwriting the KeyPair File:-\nWARNING THIS WILL DELETE THE OLD KEYPAIR FILE THE KEYS WILL BE LOST ");
                 resp = scn.nextLine();
                 if(!resp.equalsIgnoreCase("overwrite")){
                     System.out.println("Not Equal to overwrite");
@@ -186,14 +266,16 @@ public class Enigma {
             System.out.println("Ran into IO Error While Saving Key Pair");
             System.out.println("Quiting...");
             System.exit(-1);
-        } catch (NoSuchAlgorithmException e) {
+        } catch (GeneralSecurityException e) {
             e.printStackTrace();
+            System.out.println("Ran into GeneralSecurity While Encrypting Key Pair");
+            System.out.println("Quiting...");
             System.exit(-1);
         }
 
         OurKeyHandler = new EnigmaKeyHandler(kp);
         KeypairGenerated = true;
-        EnigmaFile.PushConfig();
+        SaveConfig();
     }
     private static void CheckConfigFile() {
         switch (EnigmaFile.GrabConfig()){
@@ -201,7 +283,7 @@ public class Enigma {
 
             case "CF" -> {
                 System.out.println("Config File Corrupted");
-                System.out.println("This could be cause by bad spelling or capitalization");
+                System.out.println("This could also be cause by bad spelling or capitalization");
             }
             case "IOE" -> {
                 System.out.println("System Experienced an IOException while Reading Config File");
