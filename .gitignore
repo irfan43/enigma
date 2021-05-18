@@ -1,3 +1,7 @@
 # Project exclude paths
 /out/
 /testing/
+/keys/
+/Enigma.conf
+/.idea/
+/.idea/artifacts/
