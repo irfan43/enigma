@@ -190,7 +190,7 @@ public class Enigma {
 
                 } catch (IOException | InvalidKeySpecException e) {
                     //TODO handle bad password
-                    System.out.println("Ran into a Error while decrypting KeyPair File\nFile maybe Corrupted or password maybe wrong \nQuiting..");
+                    System.out.println("Ran into a Error while decrypting KeyPair File\nFile maybe Corrupted or password maybe wrong \nQuiting..\nError INFO:-");
                     e.printStackTrace();
                     System.exit(-1);
                 } catch (GeneralSecurityException e) {

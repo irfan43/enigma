@@ -1,19 +1,14 @@
 package org.dragonservers.enigma;
 
-import org.jetbrains.annotations.Nullable;
-
 import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
 public class EnigmaFile {
@@ -29,9 +24,8 @@ public class EnigmaFile {
             new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
     private static final String[] configFileValues = {"Username","Registered","Keypair"};
 
-    public static void MKDIR(String file) throws IOException {
-        MKDIR(new File(file));
-    }
+    //TODO Add AES file Encryption
+    //TODO Add file partitioning (cut a large file into smaller files and later recombine them)
     public static void MKDIR(File file) throws IOException {
         if(file.exists()){
             if(!file.isDirectory())
@@ -48,85 +42,99 @@ public class EnigmaFile {
     }
     // Reading and Writing to KeyPair
     //Reading
+
+
     public static KeyPair ReadKeyPair(File Filename,byte[] key) throws IOException, GeneralSecurityException {
+        System.out.println(" Decrypting with key = " + Base64.getEncoder().encodeToString(key));
         FileInputStream fis = new FileInputStream(Filename);
         BufferedInputStream bis = new BufferedInputStream(fis);
 
+        // verify the signature
         byte[] signature = new byte[8];
         readBytes(bis,signature);
         if(!Arrays.equals(KeyPairSignature,signature))
             throw new IOException("Bad Signature");
 
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        byte[] binLen = new byte[4];
-        readBytes(bis,binLen);
-
-        byte[] bin = new byte[ByteBuffer.wrap(binLen).getInt()];
-        readBytes(bis,bin);
-        byte[] hash = new byte[32];
-        readBytes(bis,hash);
-        bis.close();
-        bin = EnigmaCrypto.AESDecrypt(bin,key);
-
-        ByteBuffer bb = ByteBuffer.wrap(bin);
-        byte[] PubEnc = new byte[bb.getInt()];
-        bb.get(PubEnc,4,PubEnc.length);
-
-        byte[] PrvEnc = new byte[bb.getInt(4 + PubEnc.length)];
-        bb.get(PrvEnc, 8 + PubEnc.length,PrvEnc.length);
+        byte[] checkBlock = new byte[48];
+        readBytes(bis,checkBlock);
+        try{
+            byte[] calCheck = getVerificationBlock(Enigma.Username);
+            byte[] Decrypted = EnigmaCrypto.AESDecrypt(checkBlock,key);
+            if(!Arrays.equals(calCheck,
+                    Decrypted)) {
+                throw new IOException();
+            }
+        }catch (BadPaddingException | IOException e){
+            throw new IOException("BAD HASH KEY");
+        }
 
 
+        byte[] PubEnc = EnigmaCrypto.AESDecrypt( readBlock(bis),key );
+        byte[] PrvEnc = EnigmaCrypto.AESDecrypt( readBlock(bis),key );
+        md.update(PubEnc);
+        md.update(PrvEnc);
+        byte[] hash   = readBlock(bis);
         byte[] CalculatedHash = md.digest();
         if(!Arrays.equals(CalculatedHash,hash))
             throw new IOException("BAD HASH");
+
+        bis.close();
         return EnigmaKeyHandler.KeyPairFromEnc(PubEnc,PrvEnc);
     }
+
+
+
     //Writing
     //Master Function
-
     public static void SaveKeyPair(File Filename,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, GeneralSecurityException {
-        byte[] bin = GetBinFromKeypair(keyPair);
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        md.update(bin);
-        if(key != null) bin = EnigmaCrypto.AESEncrypt(bin,key);
-
+        System.out.println(" Encrypting with key = " + Base64.getEncoder().encodeToString(key));
         if(Filename.exists() && !OverWrite)
             throw new FileNotFoundException("File Already Exists");
         MKDIR(Filename.getParentFile());
+
+        byte[] publicKeyEnc = keyPair.getPublic().getEncoded();
+        byte[] privateKeyEnc = keyPair.getPrivate().getEncoded();
+
+        md.update(publicKeyEnc);
+        md.update(privateKeyEnc);
 
         FileOutputStream fos = new FileOutputStream(Filename);
         BufferedOutputStream bos = new BufferedOutputStream(fos);
 
         bos.write(KeyPairSignature);
-        bos.write(bin.length);
-        bos.write(bin);
-        bos.write(md.digest());
+        byte[] checkBlock = EnigmaCrypto.AESEncrypt( getVerificationBlock(Enigma.Username), key);
+        assert checkBlock.length == 48;
+        bos.write( checkBlock);
+        //end of header
+        //now all blocks
+        writeBlock(bos,  EnigmaCrypto.AESEncrypt(publicKeyEnc,key) );
+        writeBlock(bos,  EnigmaCrypto.AESEncrypt(privateKeyEnc,key) );
+        writeBlock(bos, md.digest());
         bos.close();
     }
 
-    private static byte[] GetBinFromKeypair(KeyPair keyPair){
-        byte[] pubBlock = GetBlock(keyPair.getPublic().getEncoded());
-        byte[] prvBlock = GetBlock(keyPair.getPrivate().getEncoded());
-
-        byte[] bin = new byte[prvBlock.length + pubBlock.length];
-        System.arraycopy(pubBlock,0,bin,0,pubBlock.length);
-        System.arraycopy(prvBlock,0,bin,pubBlock.length,prvBlock.length);
-        return bin;
+    private static byte[] getVerificationBlock(String username) throws GeneralSecurityException {
+        String paddingUsername = (username + "EnigmaPaddingFalseEchoEcho").substring(0,16);
+        return paddingUsername.getBytes(StandardCharsets.UTF_8);
     }
-    //Reading and Writing a list of keys
-
-  public static byte[] GetBlock(byte[] bin){
-        //throw exception for blocks larger then 1mb
-        if(bin.length > 1048576)throw new IllegalArgumentException("unbuffered Block Size Exceeded Maximum size");
-
-        byte[] block = new byte[bin.length + 4];
-        //Encodes the length into the first 4 bytes of the block
-        byte[] intEncoded = ByteBuffer.allocate(4).putInt(bin.length).array();
-
-        System.arraycopy(intEncoded,0,block,0,4);
-        System.arraycopy(bin, 0,block,4,bin.length);
-
+    public static byte[] readBlock(BufferedInputStream bis) throws IOException {
+        byte[] intLenEnc = new byte[4];
+        readBytes(bis,intLenEnc);
+        int len = ByteBuffer.wrap(intLenEnc).getInt();
+        if(len <= 0){
+            throw new IOException("Bad Block Header");
+        }
+        byte[] block = new byte[len];
+        readBytes(bis,block);
         return block;
+    }
+    public static void  writeBlock(BufferedOutputStream bos, byte[] data) throws IOException {
+        ByteBuffer bb = ByteBuffer.allocate(4);
+        bb.putInt(data.length);
+        bos.write(bb.array());
+        bos.write(data);
     }
      //Functions for handling Config Files
     public static String GrabConfig() {
