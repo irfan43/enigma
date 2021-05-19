@@ -64,10 +64,7 @@ public class Enigma {
                 if(pbk != null){
                     ServerPublicKey = pbk;
                     System.out.println("Running With Server Public Key:-");
-                    System.out.println("Hex:-");
-                    System.out.println(EnigmaCLI.toHexString(pbk.getEncoded()));
-                    System.out.println("SHA256 Hash:-");
-                    System.out.println(EnigmaCLI.toHexString(EnigmaCrypto.SHA256(pbk.getEncoded())));
+                    PrintBinDataWithSha(ServerPBKEnc);
                 }
             }catch (GeneralSecurityException e){
                 System.out.println("Error while Reading Stored Server Public Key");
@@ -95,7 +92,7 @@ public class Enigma {
             System.out.println("Got Key As :-");
             System.out.println(EnigmaCLI.toHexString(ServerPbk.getEncoded()));
             System.out.println("SHA-256:-");
-            System.out.println(EnigmaCLI.toHexString(hash));
+            System.out.println(Base64.getEncoder().encodeToString(hash));
             System.out.println("Would you like this Save This Key?(yes/no)");
             resp = scn.nextLine();
             if(!resp.toLowerCase().startsWith("y")) {
@@ -171,6 +168,11 @@ public class Enigma {
         }
         return hash;
     }
+    private static void PrintDataHash(String name,byte[] data){
+        System.out.println("Got " + name + " As:-");
+        System.out.println("SHA256(" + name + "):- " +
+                Base64.getEncoder().encodeToString(data).substring(0,32));
+    }
     private static void CheckKeyPair() {
         File kpFile = new File(KeyPairFile);
         boolean fileGood = true;
@@ -187,16 +189,22 @@ public class Enigma {
                 try {
                     KeyPair kp = EnigmaFile.ReadKeyPair(kpFile,UserPassword);
                     OurKeyHandler = new EnigmaKeyHandler(kp);
-
+                    PrintDataHash("Public Key", OurKeyHandler.GetPublicKey().getEncoded());
+                    PrintDataHash("Private Key", OurKeyHandler.GetPrivateKey().getEncoded());
                 } catch (IOException | InvalidKeySpecException e) {
                     //TODO handle bad password
-                    System.out.println("Ran into a Error while decrypting KeyPair File\nFile maybe Corrupted or password maybe wrong \nQuiting..\nError INFO:-");
+                    System.out.println("Ran into a Error while decrypting KeyPair File\n" +
+                            "File maybe Corrupted or password or username maybe wrong \n" +
+                            "Since the Key verification use the username this can be cause by wrong username \n" +
+                            "Quiting..\n" +
+                            "Error INFO:-");
                     e.printStackTrace();
                     System.exit(-1);
                 } catch (GeneralSecurityException e) {
                     e.printStackTrace();
                     System.exit(-1);
                 }
+
                 return;
             }
         }else {
@@ -211,9 +219,20 @@ public class Enigma {
             System.out.println("Quiting...");
             System.exit(-1);
         }
-        CLIGenKeyPair();
+        try{
+            CLIGenKeyPair();
+        }catch (NoSuchAlgorithmException e){
+            System.out.println("Error While Trying to generate a Key pair");
+            System.out.println("Quiting...\nError INFO:-");
+            e.printStackTrace();
+        }
     }
-    private static void CLIGenKeyPair()  {
+    private static void PrintBinDataWithSha(byte[] data) throws NoSuchAlgorithmException {
+        System.out.println(Base64.getEncoder().encodeToString(data));
+        System.out.println("SHA256:-");
+        System.out.println(Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(data)));
+    }
+    private static void CLIGenKeyPair() throws NoSuchAlgorithmException {
         File kpFile = new File(KeyPairFile);
         System.out.println("Generating New KeyPair");
         KeyPair kp = null;
@@ -229,10 +248,12 @@ public class Enigma {
         }
         System.out.println("Got KeyPair:-");
         System.out.println("Public:-");
-        System.out.println(EnigmaCLI.toHexString(kp.getPublic().getEncoded()));
+        PrintBinDataWithSha(kp.getPublic().getEncoded());
         System.out.println("Private:-");
-        System.out.println(EnigmaCLI.toHexString(kp.getPrivate().getEncoded()));
-        System.out.println("Please save this else where \nin the event the encryption password is forgotten or some other IO ERROR occurs\nSave This Key? (yes/no)");
+        PrintBinDataWithSha(kp.getPrivate().getEncoded());
+        System.out.println("Please save this else where \n" +
+                "in the event the encryption password is forgotten or some other IO ERROR occurs\n" +
+                "Save This Key? (yes/no)");
 
         String resp = scn.nextLine();
         EnigmaCLI.CLS();

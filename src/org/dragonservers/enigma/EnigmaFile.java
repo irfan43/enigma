@@ -45,7 +45,6 @@ public class EnigmaFile {
 
 
     public static KeyPair ReadKeyPair(File Filename,byte[] key) throws IOException, GeneralSecurityException {
-        System.out.println(" Decrypting with key = " + Base64.getEncoder().encodeToString(key));
         FileInputStream fis = new FileInputStream(Filename);
         BufferedInputStream bis = new BufferedInputStream(fis);
 
@@ -89,7 +88,6 @@ public class EnigmaFile {
     //Master Function
     public static void SaveKeyPair(File Filename,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, GeneralSecurityException {
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        System.out.println(" Encrypting with key = " + Base64.getEncoder().encodeToString(key));
         if(Filename.exists() && !OverWrite)
             throw new FileNotFoundException("File Already Exists");
         MKDIR(Filename.getParentFile());
