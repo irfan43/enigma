@@ -2,6 +2,7 @@ package org.dragonservers.enigma;
 
 import java.io.Console;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 
 public class EnigmaCLI {
 	public static final String ANSI_CLS = "\u001b[2J";
@@ -14,8 +15,35 @@ public class EnigmaCLI {
 	public static final boolean IsWindows = System.getProperty("os.name").contains("Windows");
 
 
-	public static void CLS(){
+	public static void MainMenu(){
+		try{
+			LogIn();
+		}catch (IOException | GeneralSecurityException e){
+			//TODO fix this
+			e.printStackTrace();
+			System.out.println("Error While logging in");
+			System.exit(-1);
+		}
+		while (true){
+			CLS();
+			System.out.println("\t== Enigma ==");
+			System.out.println("\tQ - Quit");
+			String resp = Enigma.scn.nextLine();
+			if(resp.contains("quit") || resp.startsWith("q"))
+				break;
 
+		}
+		//TODO any Save operation if needed
+		CLS();
+		System.out.println("=GOODBYE=");
+	}
+
+	private static void LogIn() throws IOException, GeneralSecurityException {
+		System.out.println("Logging in....");
+		Enigma.TuringConnection.LogIn();
+	}
+
+	public static void CLS(){
 		if(IsWindows){
 			try {
 				new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();

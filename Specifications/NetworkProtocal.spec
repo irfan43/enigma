@@ -44,9 +44,9 @@ List of Gets
 		BAD PASSWORD INVALID_FORMAT
 -Get Session ID Equivalent to a login request
 		ENC
+		[GET SESID]
 		[
-		GET SESID
-		PublicKey:[PublicKey]
+		PublicKey:B64(PublicKey)
 		Password:"<password-hash>" //todo change later to send hash of the HASH
 		headerUTC: Long encoded base 64 //this is made to string then Binary then placed before the password hash and rehashed
 		headerSign:<base 64 signature> //TODO
@@ -72,16 +72,48 @@ List of Gets
 		//TODO add options to filter by username/PBK
 -Get Packet
 		ENC
-		GET PACKET
-		publickey:[]
+		[GET PACKET]
+		[
+		publickey:B64()
 		SessionID:"sessionid"
+		]
 	returns
 		GOOD / BAD Credential / BAD PacketID
 		[PACKET DATA]
 
 -Send PACKET
-	ENC
+		[ENC]
+		[SEND PACKET]
+		[
+		PublicKey:B64()
+		SessionID:""
+		]
+		[PACKET_DATA]
+	return
+		GOOD / BAD
 
+-GET USER_PUBLIC_KEY
+		[ENC]
+		[CMD]
+		[
+		PublicKey:B64()
+		SessionID:""
+		Search-Username:""
+		]
+	return
+		GOOD / BAD Cred header etc
+		DOES_NOT_EXIST / PublicKey: B64()
+-GET USERNAME
+		[ENC]
+		[CMD]
+		[
+		PublicKey:B64()
+		SessionID:""
+		Search-PublicKey:B64()
+		]
+		return
+		GOOD / BAD Cred header etc
+		DOES_NOT_EXIST / Username:<string>
 List of commands
 -registration
 -Check Registration //follow with get session id
