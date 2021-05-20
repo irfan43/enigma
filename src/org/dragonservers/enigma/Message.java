@@ -23,7 +23,7 @@ public class Message implements Serializable {
 	 * @param fromAddr is the Origin Address of the message
 	* */
 	public Message(String data, byte[] toAddr, byte[] fromAddr, PrivateKey pk) throws GeneralSecurityException {
-		init(data,toAddr,fromAddr,pk, EnigmaTime.GetUnixTime());
+		init(data,toAddr,fromAddr,pk, System.currentTimeMillis());
 	}
 
 	private void init(String data, byte[] toAddr, byte[] fromAddr, PrivateKey pk, long time) throws GeneralSecurityException{
@@ -64,6 +64,8 @@ public class Message implements Serializable {
 		bb.put(sign,signedData.length,sign.length);
 		return bb.array();
 	}
+
+
 
 	private byte[] getBlock(ByteBuffer bb,int pos){
 		int len = bb.getInt(pos);

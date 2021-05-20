@@ -1,13 +1,15 @@
 package org.dragonservers.enigma;
 
-import javax.crypto.KeyAgreement;
-import java.io.Serializable;
+import javax.crypto.*;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
+import java.util.Random;
 
 public class EnigmaFriend implements Serializable {
 	//these are transient for security Reasons
@@ -87,9 +89,60 @@ public class EnigmaFriend implements Serializable {
 		DHKeyPair = kpg.generateKeyPair();
 	}
 
-	public void loadMessagesFromFile(){
+	public void loadMessagesFromFile() throws GeneralSecurityException, IOException, ClassNotFoundException {
+		if(friendsUsername == null)
+			initializeFile();
+		else{
+			InputStream is = Files.newInputStream(Path.of(friendFile));
+			final Cipher c = Cipher.getInstance("AES");
 
+			final KeyGenerator kg = KeyGenerator.getInstance("AES");
+			kg.init(new SecureRandom(sharedSecret));
+			final SecretKey key = kg.generateKey();
+			c.init(Cipher.DECRYPT_MODE,key);
+			CipherInputStream cipherInputStream = new CipherInputStream(is,c);
+
+			ObjectInputStream objectInputStream = new ObjectInputStream(cipherInputStream);
+			enigmaMessages = (EnigmaMessages) objectInputStream.readObject();
+
+			objectInputStream.close();
+			cipherInputStream.close();
+			is.close();
+		}
 	}
+	public void saveMessagesToFile() throws GeneralSecurityException, IOException {
+		OutputStream os = Files.newOutputStream(Path.of(friendFile));
+		final Cipher c = Cipher.getInstance("AES");
 
+		final KeyGenerator kg = KeyGenerator.getInstance("AES");
+		kg.init(new SecureRandom(sharedSecret));
+		final SecretKey key = kg.generateKey();
 
+		c.init(Cipher.ENCRYPT_MODE,key);
+		CipherOutputStream cipherOutputStream = new CipherOutputStream(os,c);
+
+		ObjectOutputStream objectOutputStream = new ObjectOutputStream(cipherOutputStream);
+		objectOutputStream.writeObject(enigmaMessages);
+		objectOutputStream.close();
+		cipherOutputStream.close();
+		os.close();
+	}
+	private void initializeFile() throws GeneralSecurityException, IOException {
+		int nchars = 5;
+		do {
+		//todo try n times before moving to more letters
+			friendFile = getRandomString(nchars) + ".msgcrypt";
+			nchars++;
+		}while (Files.exists(Path.of("friends",friendFile)));
+		enigmaMessages = new EnigmaMessages(friendsUsername,friendsPublicKey);
+		saveMessagesToFile();
+	}
+	private String getRandomString(int nChars){
+		Random rnd = new Random();
+		String availChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < nChars; i++)
+			sb.append(availChars.charAt(rnd.nextInt(availChars.length())));
+		return sb.toString();
+	}
 }
