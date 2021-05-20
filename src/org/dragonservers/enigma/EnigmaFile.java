@@ -1,354 +1,237 @@
 package org.dragonservers.enigma;
 
-import org.jetbrains.annotations.Nullable;
+import javax.crypto.BadPaddingException;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 
 public class EnigmaFile {
 
     //Constants                             //(byte) 78,(byte) e6,(byte) 42,(byte) 06,(byte) d8,(byte) 00,(byte) 0f,(byte) eb
-    final static byte[] KeyPairSignature = new byte[]{ (byte) 0x78,(byte) 0xe6,(byte) 0x42,(byte) 0x06,(byte) 0xd8,(byte) 0x00,(byte) 0x0f,(byte) 0xeb};
-    final static byte[] EncryptionSignature = new byte[]{ (byte)0x1d,(byte)0x08,(byte)0x14, (byte)0x0e,(byte)0x17,(byte)0x06,(byte)0x13,(byte)0x36};
-    public static byte[] VersionCode = new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
+    final static byte[] KeyPairSignature =
+            new byte[]{ (byte)0x78,(byte)0xe6,(byte)0x42,(byte)0x06,(byte)0xd8,(byte)0x00,(byte)0x0f,(byte)0xeb};
+    final static byte[] PublicKeySignedSignature =
+            new byte[]{ (byte)0x41,(byte)0x4D,(byte)0x54,(byte)0x75,(byte)0x72,(byte)0x69,(byte)0x6e,(byte)0x67};
+    final static byte[] FriendSignature =
+            new byte[]{ (byte)0x4D,(byte)0x61,(byte)0x73,(byte)0x74,(byte)0x65,(byte)0x48,(byte)0x47,(byte)0x01};
+    final static byte[] EncryptionSignature =
+            new byte[]{ (byte)0x1d,(byte)0x08,(byte)0x14,(byte)0x0e,(byte)0x17,(byte)0x06,(byte)0x13,(byte)0x36};
+    public static byte[] VersionCode =
+            new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
     private static final String[] configFileValues = {"Username","Registered","Keypair"};
 
-
+    //TODO add a public key file with a
+    //      username
+    //      publickey
+    //      signature
+    //    so u can share this with your friends
+    //TODO Add AES file Encryption
+    //TODO Add file partitioning (cut a large file into smaller files and later recombine them)
+    public static void MKDIR(File file) throws IOException {
+        if(file.exists()){
+            if(!file.isDirectory())
+                throw new FileNotFoundException("Given File is not a Directory");
+        }else {
+            if (!file.mkdirs())
+                throw new IOException("Could not create the Directory or parent directory for " + file.getCanonicalPath());
+        }
+    }
     public static void readBytes(BufferedInputStream bis,byte[] block) throws IOException {
         int eof = bis.read(block);
         if(eof == -1)
             throw new IOException("Reached End Of File Prematurely");
     }
-
     // Reading and Writing to KeyPair
     //Reading
-    public static KeyPair ReadKeyPair(File Filename,byte[] key) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
-        FileInputStream fis = new FileInputStream(Filename);
-        BufferedInputStream bis = new BufferedInputStream(fis);
+    public static KeyPair ReadKeyPair(Path pathToFile,byte[] key) throws IOException, GeneralSecurityException {
+        //todo simplify this with encrypted read write functions
 
+        BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(pathToFile));
+
+        // verify the signature
         byte[] signature = new byte[8];
         readBytes(bis,signature);
         if(!Arrays.equals(KeyPairSignature,signature))
             throw new IOException("Bad Signature");
 
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        int pos = 0;
-        List<byte[]> keysEnc = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            Object[] rtr = GrabEncryptedBlock(bis,key,pos,md);
-            keysEnc.add( (byte[])rtr[0] );
-            pos = (int)rtr[1];
+        byte[] checkBlock = new byte[48];
+        readBytes(bis,checkBlock);
+        try{
+            byte[] calCheck = getVerificationBlock(Enigma.Username);
+            byte[] Decrypted = EnigmaCrypto.AESDecrypt(checkBlock,key);
+            if(!Arrays.equals(calCheck,
+                    Decrypted)) {
+                throw new IOException();
+            }
+        }catch (BadPaddingException | IOException e){
+            throw new IOException("BAD HASH KEY");
         }
 
-        byte[] hash = new byte[32];
-        readBytes(bis,hash);
 
+        byte[] PubEnc = EnigmaCrypto.AESDecrypt( readBlock(bis),key );
+        byte[] PrvEnc = EnigmaCrypto.AESDecrypt( readBlock(bis),key );
+        md.update(PubEnc);
+        md.update(PrvEnc);
+        byte[] hash   = readBlock(bis);
         byte[] CalculatedHash = md.digest();
-        if(Arrays.equals(CalculatedHash,hash))
+        if(!Arrays.equals(CalculatedHash,hash))
             throw new IOException("BAD HASH");
 
-        return EnigmaKeyHandler.KeyPairFromEnc(keysEnc.get(0),keysEnc.get(1));
+        bis.close();
+        return EnigmaKeyHandler.KeyPairFromEnc(PubEnc,PrvEnc);
     }
-
     //Writing
     //Master Function
-    public static void SaveKeyPair(String Filename,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, NoSuchAlgorithmException {
-        SaveKeyPair(new File(Filename),keyPair,OverWrite,key);
-    }
-    public static void SaveKeyPair(File Filename,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, NoSuchAlgorithmException {
-        byte[] bin = GetBinFromKeypair(keyPair);
-        MessageDigest md = MessageDigest.getInstance("SHA256");
-        md.update(bin);
-        if(key != null) bin = EnigmaCrypto.Encrypt(bin,key);
-
-        if(Filename.exists() && !OverWrite)
+    public static void SaveKeyPair(Path PathToSave,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, GeneralSecurityException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        if(Files.exists(PathToSave) && !OverWrite)
             throw new FileNotFoundException("File Already Exists");
+        Files.createDirectories(PathToSave.getParent());
 
-        FileOutputStream fos = new FileOutputStream(Filename);
-        BufferedOutputStream bos = new BufferedOutputStream(fos);
+        byte[] publicKeyEnc = keyPair.getPublic().getEncoded();
+        byte[] privateKeyEnc = keyPair.getPrivate().getEncoded();
+
+        md.update(publicKeyEnc);
+        md.update(privateKeyEnc);
+
+        BufferedOutputStream bos = new BufferedOutputStream(Files.newOutputStream(PathToSave));
 
         bos.write(KeyPairSignature);
-        bos.write(bin);
-        bos.write(md.digest());
-
-    }
-
-    private static byte[] GetBinFromKeypair(KeyPair keyPair){
-        byte[] pubBlock = GetBlock(keyPair.getPublic().getEncoded());
-        byte[] prvBlock = GetBlock(keyPair.getPrivate().getEncoded());
-
-        byte[] bin = new byte[prvBlock.length + pubBlock.length];
-        System.arraycopy(pubBlock,0,bin,0,pubBlock.length);
-        System.arraycopy(prvBlock,0,bin,pubBlock.length,prvBlock.length);
-        return bin;
-    }
-
-    //Reading and Writing a list of keys
-    public static List<PublicKey> GetKeyList(String Filename,byte[] key) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
-        return getKeyList(EnigmaCrypto.Encrypt(Files.readAllBytes(Paths.get(Filename)),key));
-    }
-    public static List<PublicKey> GetKeyList(String Filename) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
-        return getKeyList(Files.readAllBytes(Paths.get(Filename)));
-    }
-    private static List<PublicKey> getKeyList(byte[] bin) throws InvalidKeySpecException, NoSuchAlgorithmException {
-        List<PublicKey> listPBK = new ArrayList<>();
-        List<byte[]> listOfBlocks = SplitBlocks(bin);
-        for(byte[] block:listOfBlocks)
-            listPBK.add(EnigmaKeyHandler.PublicKeyFromEnc(block));
-        return listPBK;
-    }
-
-    //block splitting
-    public static byte[] GetBlock(byte[] bin){
-        //throw exception for blocks larger then 1mb
-        if(bin.length > 1048576)throw new IllegalArgumentException("unbuffered Block Size Exceeded Maximum size");
-
-        byte[] block = new byte[bin.length + 4];
-        //Encodes the length into the first 4 bytes of the block
-        byte[] intEncoded = ByteBuffer.allocate(4).putInt(bin.length).array();
-
-        System.arraycopy(intEncoded,0,block,0,4);
-        System.arraycopy(bin, 0,block,4,bin.length);
-
-        return block;
-    }
-    public static List<byte[]> SplitBlocks(byte[] bin){
-        List<byte[]> out = new ArrayList<>();
-        int pos = 0;
-        while(pos < bin.length){
-            int len = ByteBuffer.wrap(Arrays.copyOfRange(bin,pos,pos + 4)).getInt();
-            byte[] block = Arrays.copyOfRange(bin,pos + 4,pos + 4 + len);
-            out.add(block);
-            pos += 4 + len;
-        }
-        return out;
-    }
-
-    //TODO later add multithreading to create new threads to encrypt a file and then return the encrypted
-    public static void EncryptFile(String[] SourceFiles, byte[] key,String FileName) throws IOException, NoSuchAlgorithmException {
-        File[] files = new File[SourceFiles.length];
-        for (int i = 0;i < SourceFiles.length;i++) {
-            files[i] = (new File(SourceFiles[i]));
-        }
-        EncryptFile(files,key,FileName);
-    }
-    public static void EncryptFile(File[] SourceFiles, byte[] key,String FileName) throws IOException, NoSuchAlgorithmException {
-
-        int pos = 0;
-
-        FileOutputStream fos = new FileOutputStream(FileName);
-        BufferedOutputStream bos = new BufferedOutputStream(fos);
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        //write the signature
-        bos.write(EncryptionSignature);
-        bos.write(VersionCode);
-
-        //  == Encryption starts from here  ==  SHA256 hash starts from here == \\
-
-        //writes the number of files present
-        byte[] intEncoded = ByteBuffer.allocate(4).putInt(SourceFiles.length).array();
-
-        md.update(intEncoded);
-        intEncoded = EnigmaCrypto.Encrypt(intEncoded,key,pos);
-        pos +=4;
-        bos.write(intEncoded);
-
-        //TODO improve it so to do recursively for directories
-        for (File file : SourceFiles)
-            pos = GetLongBlockBuffered(bos, file, key,pos, md);
-
-        // == SHA 256 hash stops from here == \\
-
-        // calculate the hash
-        byte[] sha256 = md.digest();
-        bos.write(sha256);
-        System.out.println( " hash = "  + Enigma.toHexString(sha256));
+        byte[] checkBlock = EnigmaCrypto.AESEncrypt( getVerificationBlock(Enigma.Username), key);
+        assert checkBlock.length == 48;
+        bos.write( checkBlock);
+        //end of header
+        //now all blocks
+        writeBlock(bos,  EnigmaCrypto.AESEncrypt(publicKeyEnc,key) );
+        writeBlock(bos,  EnigmaCrypto.AESEncrypt(privateKeyEnc,key) );
+        writeBlock(bos, md.digest());
         bos.close();
+    }
+
+
+    //Single Public Key
+    public static PublicKey readPublicKey(Path file) throws GeneralSecurityException, IOException {
+        Files.createDirectories(file.getParent());
+        BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(file));
+
+        //verify file signature (do not confuse this with a rsa sign) this is to check for user error
+        byte[] signature = new byte[PublicKeySignedSignature.length];
+        readBytes(bis,signature);
+        if(!Arrays.equals(signature,PublicKeySignedSignature))
+            throw new IOException("Bad Signature on Public Key File");
+        byte[] pbkEnc = readBlock(bis);
+        PublicKey pbk = EnigmaKeyHandler.PublicKeyFromEnc(pbkEnc);
+
+        Signature sgn = Signature.getInstance("SHA256withRSA");
+        sgn.initVerify(Enigma.OurKeyHandler.GetPublicKey());
+        sgn.update(pbkEnc);
+
+        if( !sgn.verify(readBlock(bis)) )
+            throw new IOException("BAD SIGNATURE");
+        bis.close();
+        return pbk;
 
     }
-    private static int GetLongBlockBuffered(BufferedOutputStream bos,File ToEncrypt,byte[] key,int pos,MessageDigest md) throws IOException {
+    public static void savePublicKey(Path file,PublicKey pbk,boolean Overwrite) throws GeneralSecurityException, IOException {
+        if(!Overwrite && Files.exists(file))
+            throw new IOException("File Already Exists");
 
-        //File Reading Streams
-        FileInputStream fis = new FileInputStream(ToEncrypt);
-        BufferedInputStream bis = new BufferedInputStream(fis);
+        Files.createDirectories(file.getParent());
+        BufferedOutputStream bos = new BufferedOutputStream(Files.newOutputStream(file));
+        byte[] pbkEnc = pbk.getEncoded();
+        bos.write(PublicKeySignedSignature);
+        writeBlock(bos,pbkEnc);
 
-        //Write the name
-
-        byte[] NameEnc = GetBlock(ToEncrypt.getName().getBytes(StandardCharsets.UTF_8));
-        pos = DigestEncryptWrite(NameEnc,md,key,pos,bos);
-
-        //Write the Length
-        byte[] longLenEnc =  ByteBuffer.allocate(8).putLong(ToEncrypt.length()).array();
-        pos = DigestEncryptWrite(longLenEnc,md,key,pos,bos);
-
-        while (bis.available() > 0){
-            byte[] buffer;
-            if(bis.available() >=1024){
-                buffer = new byte[1024];
-            }else{
-                buffer = new byte[bis.available()];
-            }
-            readBytes(bis,buffer);
-            md.update(buffer);
-            buffer = EnigmaCrypto.Encrypt(buffer,key,pos);
-            pos += buffer.length;
-            bos.write(buffer);
-
-            //trim pos to stop overflowing
-            if(pos >= (key.length*10))pos -= key.length*(pos/ key.length);
-        }
-        return pos;
+        Signature sgn = Signature.getInstance("SHA256withRSA");
+        sgn.initSign( Enigma.OurKeyHandler.GetPrivateKey() );
+        sgn.update(pbkEnc);
+        writeBlock(bos,sgn.sign());
+        bos.close();
     }
-    private static int DigestEncryptWrite(byte[] block,MessageDigest md, byte[] key, int pos,BufferedOutputStream bos) throws IOException {
-        md.update(block);
-        byte[] Encrypted = EnigmaCrypto.Encrypt(block,key,pos);
-        pos += block.length;
-        bos.write(Encrypted);
-        return  pos;
-    }
-    public static void DecryptFile(File Filename,String Destination,byte[] key) throws IOException, NoSuchAlgorithmException {
-        int pos = 0;
+/*
+    public static void ReadFriend(EnigmaFriend enigmaFriend,byte[] key) throws IOException, GeneralSecurityException {
+        Path p = Path.of(enigmaFriend.Username);
+        if(!Files.exists(p))
+            throw new IOException("Friend FILE missing");
+        if(Files.isDirectory(p))
+            throw new IOException("Friend FILE is Directory");
+        BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(p));
 
-        FileInputStream fis = new FileInputStream(Filename);
-        BufferedInputStream bis = new BufferedInputStream(fis);
+        //todo make this a function call
+        byte[] fileSignature = new byte[FriendSignature.length];
+        readBytes(bis, fileSignature);
+        if(!Arrays.equals(fileSignature,FriendSignature))
+            throw new IOException("Friend File Bad File Signature");
 
-        File destination = new File(Destination);
-        if(destination.exists()) {
-            if (!destination.isDirectory())
-                throw new FileNotFoundException("Destination is not a directory");
-        }else{
-             //create directory
-             if(!destination.mkdirs())
-                 throw new FileNotFoundException("Could not create Directory");
-        }
-
-        byte[] Signature = new byte[8];
-        readBytes(bis,Signature);
-
-        byte[] versionCode = new byte[4];
-        readBytes(bis,versionCode);
-
-        if(!Arrays.equals(Signature,EncryptionSignature) )
-            throw new IOException("Invalid Signature, This is not a Encryption file or has a bad header ");
-        //TODO handle version stuff currently 1 version so not needed
-
-
-
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-
-        //  == Decryption starts from here  ==  SHA256 hash starts from here == \\
-
-        //get the number of files Present
-        byte[] nFilesEnc = ReadDecryptDigest(4,bis,key,pos,md);
-        int nFiles = ByteBuffer.wrap(nFilesEnc).getInt();
-        pos += nFilesEnc.length;
-        if(nFiles <= 0 )
-            throw new IOException("BAD FILE ARGUMENTS 'nFile'");
-        for(int i = 0;i < nFiles;i++){
-            pos = SaveDecryptedFile(bis,key,pos,md,destination);
-        }
-        byte[] calculateHash = md.digest();
-        byte[] hash = new byte[32];
-        int EOF = bis.read(hash);
-
-        if(!Arrays.equals(hash,calculateHash))
-            throw new IOException("Bad HASH ");
+        byte[] publicKeyEnc = readEncryptedBlock(bis,key);
+        byte[] sharedSecret = readEncryptedBlock(bis,key);
+        Signature sgn = Signature.getInstance("SHA256withRSA");
+        sgn.initVerify(Enigma.OurKeyHandler.GetPublicKey());
+        sgn.update(publicKeyEnc);
+        sgn.update(sharedSecret);
+        if(!sgn.verify(readBlock(bis)))
+            throw new IOException("Friend File RSA Signature\nFiles Been tampered With");
+        enigmaFriend.publicKey = EnigmaKeyHandler.PublicKeyFromEnc(publicKeyEnc);
+        enigmaFriend.sharedSecret = readEncryptedBlock(bis,key);
 
         bis.close();
     }
-    //TODO verify this
-    public static boolean IsParentDirectory(File ToCheck, File Parent) throws IOException {
-        String parentPath = Parent.getCanonicalPath();
-        File checkParent = ToCheck.getParentFile();
-        while(checkParent != null) {
-            if( checkParent.getCanonicalPath().equals(parentPath) ) return true;
-            checkParent = checkParent.getParentFile();
-        }
-        return false;
-    }
-    private static int SaveDecryptedFile(BufferedInputStream bis, byte[] key, int pos, MessageDigest md,File TopDirectory) throws IOException{
-        //grab name and generate file
-        Object[] rtr = GrabEncryptedBlock(bis,key,pos,md);
-        byte[] fileNameEnc = (byte[])rtr[0];
-        pos = (int) rtr[1];
-
-        String outputFilename = new String(fileNameEnc,StandardCharsets.UTF_8);
-        File output = new File(TopDirectory,outputFilename);
-        if(output.exists())
-            throw new IOException( output.getName() + " already exists");
-        //TODO add overWright flag
-
-        if(!IsParentDirectory(output,TopDirectory))
-            throw new IOException("BAD FILE Directory, trying to escape TopDirectory ");
-
-        if(!TopDirectory.exists())if(!TopDirectory.mkdirs())
-            throw new IOException("Failed To Make Parent Directories");
-
-        FileOutputStream fos = new FileOutputStream(output);
-        BufferedOutputStream bos = new BufferedOutputStream(fos);
-
-
-        byte[] lengthLongEnc = new byte[8];
-        readBytes(bis,lengthLongEnc);
-        lengthLongEnc = EnigmaCrypto.Encrypt(lengthLongEnc,key,pos);
-        md.update(lengthLongEnc);
-        pos += lengthLongEnc.length;
-        long length = ByteBuffer.wrap(lengthLongEnc).getLong();
-
-
-
-        int blockPos = 0;
-        while ( (length - (long)blockPos) > 0){
-            byte[] buffer;
-            if((length - (long)blockPos) > 1024){
-                buffer = new byte[1024];
-            }else {
-                buffer = new byte[(int)(length - (long)blockPos)];
-            }
-            readBytes(bis,buffer);
-            buffer = EnigmaCrypto.Encrypt(buffer,key,pos);
-
-            blockPos += buffer.length;
-            pos += buffer.length;
-            md.update(buffer);
-            bos.write(buffer);
-            if(pos > key.length*10)pos -= (pos/key.length)*key.length;
-        }
-        bos.flush();
+    public static void SaveFriend(EnigmaFriend enigmaFriend,byte[] key) throws IOException,GeneralSecurityException {
+        if (enigmaFriend == null)
+            throw new NullPointerException();
+        Path p = Path.of("keys/users/",enigmaFriend.Username);
+        Files.createDirectories(p.getParent());
+        BufferedOutputStream bos = new BufferedOutputStream( Files.newOutputStream(p) );
+        bos.write(FriendSignature);
+        Signature sgn = Signature.getInstance("SHA256withRSA");
+        byte[] pbkEnc = enigmaFriend.publicKey.getEncoded();
+        sgn.initSign(Enigma.OurKeyHandler.GetPrivateKey());
+        sgn.update(pbkEnc);
+        sgn.update(enigmaFriend.sharedSecret);
+        writeEncryptedBlock(bos,pbkEnc,key);
+        writeEncryptedBlock(bos,enigmaFriend.sharedSecret,key);
+        writeBlock(bos,sgn.sign());
         bos.close();
-        return pos;
+    }*/
+    private static byte[] getVerificationBlock(String username) throws GeneralSecurityException {
+        String paddingUsername = (username + "EnigmaPaddingFalseEchoEcho").substring(0,16);
+        return paddingUsername.getBytes(StandardCharsets.UTF_8);
     }
-    private static Object[] GrabEncryptedBlock(BufferedInputStream bis, byte[] key,int pos,@Nullable MessageDigest md) throws IOException {
-        byte[] blockLengthEnc = ReadDecryptDigest(4,bis,key,pos,md);
-        pos += blockLengthEnc.length;
-        int blockLength = ByteBuffer.wrap(blockLengthEnc).getInt();
-
-        byte[] data = new byte[blockLength];
-
-        int eof = bis.read(data);
-        if(eof == -1)
-            throw new IOException("End Of File Reached");
-        if(key != null)data = EnigmaCrypto.Encrypt(data,key,pos);
-        if(md != null)md.update(data);
-        pos += data.length;
-        return new Object[]{data,pos};
+    public static byte[] readBlock(BufferedInputStream bis) throws IOException {
+        byte[] intLenEnc = new byte[4];
+        readBytes(bis,intLenEnc);
+        int len = ByteBuffer.wrap(intLenEnc).getInt();
+        if(len <= 0){
+            throw new IOException("Bad Block Header");
+        }
+        byte[] block = new byte[len];
+        readBytes(bis,block);
+        return block;
     }
-    private static byte[] ReadDecryptDigest(int len, BufferedInputStream bis, byte[] key,int pos,@Nullable MessageDigest md) throws IOException {
-        byte[] bin = new byte[len];
-        readBytes(bis,bin);
-        if(key != null)bin = EnigmaCrypto.Encrypt(bin,key,pos);
-        if(md != null)md.update(bin);
-        return bin;
+    public static void  writeBlock(BufferedOutputStream bos, byte[] data) throws IOException {
+        ByteBuffer bb = ByteBuffer.allocate(4);
+        bb.putInt(data.length);
+        bos.write(bb.array());
+        bos.write(data);
+    }
+    public static byte[] readEncryptedBlock(BufferedInputStream bis,byte[] key)throws IOException, GeneralSecurityException{
+        byte[] block = readBlock(bis);
+        return EnigmaCrypto.AESDecrypt(block,key);
+    }
+    public static void writeEncryptedBlock(BufferedOutputStream bos, byte[] data,byte[] key)throws IOException, GeneralSecurityException{
+        byte[] dataEncrypted = EnigmaCrypto.AESEncrypt(data,key);
+        writeBlock(bos,dataEncrypted);
     }
 
-
+        //Functions for handling Config Files
     public static String GrabConfig() {
 
         File configFile = new File(Enigma.ConfigFileName);
@@ -357,6 +240,8 @@ public class EnigmaFile {
             return "DNE";
         if(configFile.isDirectory())
             return "DIR";
+        if(!configFile.canRead())
+            return "NRP";//No Read Privilege
 
         //all good try Reading the file
         String[] Ans =  new String[configFileValues.length];
@@ -398,7 +283,6 @@ public class EnigmaFile {
 
         return "OK";
     }
-
     private static String GetValue(String line, char separator) {
         int sepLoc = -1;
         for (int i = 0; i < line.length(); i++) {
@@ -409,5 +293,44 @@ public class EnigmaFile {
         }
         if(sepLoc == -1)return null;
         return line.substring(sepLoc + 1); //Magic:Check gives 5
+    }
+    public static String PushConfig(){
+        File config = new File(Enigma.ConfigFileName);
+
+        if(!config.exists()){
+            try {
+                if(!config.createNewFile()){
+                    return "CNC";
+                }
+            } catch (IOException e) {
+                return "IOE";
+            }
+        }
+
+        if(config.isDirectory())
+            return "DIR";
+        if(!config.canWrite())
+            return "NWP"; //No Write Privilege
+        String[] Ans = new String[configFileValues.length];
+
+        Ans[0] = Enigma.Username;
+        Ans[1] = (Enigma.Registered) ? "true" : "false";
+        Ans[2] = (Enigma.KeypairGenerated) ? "true" : "false";
+
+        try {
+            FileWriter fw = new FileWriter(config);
+            BufferedWriter bw = new BufferedWriter(fw);
+            bw.write( "#" + "Enigma Version " + Enigma.EnigmaVersion + "\n");
+            bw.write("# NOT INTENDED FOR USER EDITING, TO Change Settings Go Through Software Interface" + "\n");
+            bw.write("# Updated on " + EnigmaTime.GetFormattedTime() + "\n");
+            for (int i = 0; i < configFileValues.length; i++) {
+                bw.write(configFileValues[i] + ":" + Ans[i] + "\n");
+            }
+            bw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "IOE";
+        }
+        return "OK";
     }
 }

@@ -8,4 +8,5 @@ Data/
 		KeyList.KeyList
 		<UserName>-<First 16 Hex Characters of There Public Key>.EnigmaChat //Encrypted For obvious Reasons
 
-Config/General.conf
+Config/
+	General.conf
