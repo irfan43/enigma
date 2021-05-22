@@ -6,7 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 
-public class Message implements Serializable {
+public class TextMessage implements Serializable {
 
 
 	public byte[] FromAddr;
@@ -15,6 +15,8 @@ public class Message implements Serializable {
 	public String messageData;
 	public byte[] sign;
 
+	//TODO move this to byteArrayInputStream
+
 	/**
 	 * @javadoc This function holds a signed text message from one user to another
 	 *
@@ -22,18 +24,19 @@ public class Message implements Serializable {
 	 * @param toAddr is the destination Address of the message
 	 * @param fromAddr is the Origin Address of the message
 	* */
-	public Message(String data, byte[] toAddr, byte[] fromAddr, PrivateKey pk) throws GeneralSecurityException {
+	public TextMessage(String data, byte[] toAddr, byte[] fromAddr, PrivateKey pk) throws GeneralSecurityException {
 		init(data,toAddr,fromAddr,pk, System.currentTimeMillis());
 	}
 
-	private void init(String data, byte[] toAddr, byte[] fromAddr, PrivateKey pk, long time) throws GeneralSecurityException{
+	private void init(String data, byte[] toAddr, byte[] fromAddr, PrivateKey pk, long time)
+			throws GeneralSecurityException{
 		ToAddr = toAddr;
 		FromAddr = fromAddr;
 		messageData = data;
 		send_time = time;
 		SignData(pk);
 	}
-	public Message(byte[] EncodedBinary){
+	public TextMessage(byte[] EncodedBinary){
 		ByteBuffer bb = ByteBuffer.wrap(EncodedBinary);
 		int pos = 0;
 		send_time = bb.getLong();
@@ -64,8 +67,6 @@ public class Message implements Serializable {
 		bb.put(sign,signedData.length,sign.length);
 		return bb.array();
 	}
-
-
 
 	private byte[] getBlock(ByteBuffer bb,int pos){
 		int len = bb.getInt(pos);

@@ -14,7 +14,7 @@ import java.util.List;
 
 public class EnigmaFile {
 
-    //Constants                             //(byte) 78,(byte) e6,(byte) 42,(byte) 06,(byte) d8,(byte) 00,(byte) 0f,(byte) eb
+    //Constants
     final static byte[] KeyPairSignature =
             new byte[]{ (byte)0x78,(byte)0xe6,(byte)0x42,(byte)0x06,(byte)0xd8,(byte)0x00,(byte)0x0f,(byte)0xeb};
     final static byte[] PublicKeySignedSignature =
@@ -90,7 +90,8 @@ public class EnigmaFile {
     }
     //Writing
     //Master Function
-    public static void SaveKeyPair(Path PathToSave,KeyPair keyPair,boolean OverWrite, byte[] key) throws IOException, GeneralSecurityException {
+    public static void SaveKeyPair(Path PathToSave,KeyPair keyPair,boolean OverWrite, byte[] key)
+            throws IOException, GeneralSecurityException {
         MessageDigest md = MessageDigest.getInstance("SHA-256");
         if(Files.exists(PathToSave) && !OverWrite)
             throw new FileNotFoundException("File Already Exists");
@@ -140,7 +141,8 @@ public class EnigmaFile {
         return pbk;
 
     }
-    public static void savePublicKey(Path file,PublicKey pbk,boolean Overwrite) throws GeneralSecurityException, IOException {
+    public static void savePublicKey(Path file,PublicKey pbk,boolean Overwrite)
+            throws GeneralSecurityException, IOException {
         if(!Overwrite && Files.exists(file))
             throw new IOException("File Already Exists");
 
@@ -221,14 +223,6 @@ public class EnigmaFile {
         bb.putInt(data.length);
         bos.write(bb.array());
         bos.write(data);
-    }
-    public static byte[] readEncryptedBlock(BufferedInputStream bis,byte[] key)throws IOException, GeneralSecurityException{
-        byte[] block = readBlock(bis);
-        return EnigmaCrypto.AESDecrypt(block,key);
-    }
-    public static void writeEncryptedBlock(BufferedOutputStream bos, byte[] data,byte[] key)throws IOException, GeneralSecurityException{
-        byte[] dataEncrypted = EnigmaCrypto.AESEncrypt(data,key);
-        writeBlock(bos,dataEncrypted);
     }
 
         //Functions for handling Config Files

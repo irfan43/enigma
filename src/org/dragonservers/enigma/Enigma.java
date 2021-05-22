@@ -2,7 +2,6 @@ package org.dragonservers.enigma;
 
 import java.io.*;
 import java.net.ConnectException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
@@ -17,7 +16,7 @@ public class Enigma {
     public static PublicKey ServerPublicKey;
 
     //State Variables
-    public static byte[] UserPassword,LoginPassword;
+    public static byte[] EncryptionPassword,LoginPassword;
     public static boolean Registered = false,KeypairGenerated= false;
     public static String Username;
     //These Variables are configuration
@@ -27,6 +26,7 @@ public class Enigma {
     public final static int ServerPort = 21947;
     public final static String EnigmaVersion = "1.00";
 
+    //TODO handle a quick fresh install
     public static void main(String[] args) {
         System.out.println( "Enigma " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
         //Start of Enigma
@@ -38,7 +38,7 @@ public class Enigma {
         CheckConfigFile();
 
         System.out.println("Enter Encryption Password:-");
-        UserPassword = GetPasswordFromUser();
+        EncryptionPassword = GetPasswordFromUser();
         CheckKeyPair();
         //We have a config File Password and KeyPair
         TuringConnection = new EnigmaServerConnection(ServerDomainName, ServerPort);
@@ -203,7 +203,7 @@ public class Enigma {
             }
             if(fileGood){
                 try {
-                    KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(),UserPassword);
+                    KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(), EncryptionPassword);
                     OurKeyHandler = new EnigmaKeyHandler(kp);
                     PrintDataHash("Public Key", OurKeyHandler.GetPublicKey().getEncoded());
                     PrintDataHash("Private Key", OurKeyHandler.GetPrivateKey().getEncoded());
@@ -288,7 +288,8 @@ public class Enigma {
                     System.out.println("Quiting...");
                     System.exit(0   );
                 }
-                System.out.print("Type \"overwrite\" to Confirm Overwriting the KeyPair File:-\nWARNING THIS WILL DELETE THE OLD KEYPAIR FILE THE KEYS WILL BE LOST ");
+                System.out.print("Type \"overwrite\" to Confirm Overwriting the KeyPair File:-" +
+                        "\nWARNING THIS WILL DELETE THE OLD KEYPAIR FILE THE KEYS WILL BE LOST ");
                 resp = scn.nextLine();
                 if(!resp.equalsIgnoreCase("overwrite")){
                     System.out.println("Not Equal to overwrite");
@@ -297,7 +298,7 @@ public class Enigma {
                 }
             }
             System.out.println("Saving KeyPair...");
-            EnigmaFile.SaveKeyPair(kpFile.toPath(),kp,false,UserPassword);
+            EnigmaFile.SaveKeyPair(kpFile.toPath(),kp,false, EncryptionPassword);
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Ran into IO Error While Saving Key Pair");

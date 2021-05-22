@@ -15,7 +15,8 @@ public class EnigmaPacket implements Serializable {
 	private final boolean signed;
 	public byte[] EncodedBinary;
 	//todo rewrite this
-	public EnigmaPacket(byte[] block) throws IllegalArgumentException, NoSuchAlgorithmException, InvalidKeySpecException {
+	public EnigmaPacket(byte[] block)
+			throws IllegalArgumentException, NoSuchAlgorithmException, InvalidKeySpecException {
 		EncodedBinary =  block.clone();
 		int blockPos = 0;
 		byte[] FromAddrEnc = GrabBlock(block,blockPos);
@@ -52,7 +53,8 @@ public class EnigmaPacket implements Serializable {
 	}
 
 	//Get the Binary to send
-	public byte[] GetBinary(PrivateKey ppk) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
+	public byte[] GetBinary(PrivateKey ppk)
+			throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
 		if(signed)
 			throw new IllegalArgumentException("Signing Signed Packet");
 		byte[] Header = mergeArray(getBlock(FromAddr.getEncoded()),getBlock(ToAddr.getEncoded()));
@@ -60,15 +62,16 @@ public class EnigmaPacket implements Serializable {
 		byte[] out =  mergeArray(Header,getBlock(Data));
 		return mergeArray(out, DataSignature);
 	}
-
-	private byte[] GenerateSignature(PrivateKey ppk) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
+	private byte[] GenerateSignature(PrivateKey ppk)
+			throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
 		sgn.initSign(ppk);
 		sgn.update(ToAddr.getEncoded());
 		sgn.update(Data);
 		return sgn.sign();
 	}
-	public boolean VerifySignature() throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+	public boolean VerifySignature()
+			throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
 		sgn.initVerify( FromAddr );
 		sgn.update(ToAddr.getEncoded());

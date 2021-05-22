@@ -14,23 +14,25 @@ public class EnigmaMessages implements Serializable {
 	private transient String[] LastRenderArray;
 	private final byte[] FriendsPublicKey;
 	private final String FUsername;
-	private HashMap<Long,Message> chat_log;
-	private HashMap<Long,Message> chat_log_latest;
+	private final HashMap<Long, TextMessage> chat_log;
+	private final HashMap<Long, TextMessage> chat_log_latest;
 
-
+//TODO add group message option
 	public EnigmaMessages(String friendsUsername, PublicKey friendsPublicKey) {
 		FUsername = friendsUsername;
 		FriendsPublicKey = friendsPublicKey.getEncoded();
+		chat_log_latest = new HashMap<>();
+		chat_log = new HashMap<>();
 	}
 	public byte[] SendMessage(String msg, PrivateKey ppk) throws GeneralSecurityException {
-		Message toSend = new Message( msg,FriendsPublicKey, Enigma.OurKeyHandler.GetPublicKey().getEncoded(),Enigma.OurKeyHandler.GetPrivateKey() );
+		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, Enigma.OurKeyHandler.GetPublicKey().getEncoded(),Enigma.OurKeyHandler.GetPrivateKey() );
 		synchronized (lockObject) {
 			chat_log.put(toSend.send_time, toSend);
 		}
 		return toSend.getBinary();
 	}
 	public boolean PutMessage(byte[] msg_bin) throws GeneralSecurityException {
-		Message recvd = new Message(msg_bin);
+		TextMessage recvd = new TextMessage(msg_bin);
 		boolean valid;
 		if(Arrays.equals(recvd.FromAddr,FriendsPublicKey))
 			throw new IllegalArgumentException("MESSAGE BAD FROM ADDRESS");
@@ -42,9 +44,9 @@ public class EnigmaMessages implements Serializable {
 				chat_log.put(recvd.send_time, recvd);
 				chat_log_latest.put(recvd.send_time, recvd);
 			}
-		return recvd.verify();
+		return valid;
 	}
-	public String GetRender(int lines){
+	public String GetRendered(int lines){
 		if(LastRender == null){
 			reRender(lines);
 		}else if(LastRenderArray.length > lines){
@@ -61,26 +63,26 @@ public class EnigmaMessages implements Serializable {
 
 	public void reRender(int nl) {
 		String[] lines = new String[nl];
-		List<Message> msgs = Get_latest(nl);
+		List<TextMessage> msgs = Get_latest(nl);
 		StringBuilder sb = new StringBuilder();
-		for (Message m :msgs) {
-			sb.append( GetFormatedMessage(m) );
+		for (TextMessage m :msgs) {
+			sb.append( GetFormattedMessage(m) );
 			sb.append("\n");
 		}
 		LastRender = sb.toString();
 		LastRenderArray = LastRender.split("\n");
 	}
-	private String GetFormatedMessage(Message msg){
+	private String GetFormattedMessage(TextMessage msg){
 		String FORMAT_TIME = "HH:mm:ss";
 		String FORMAT_DATE = "yy-MM-dd";
 		String Final_Format = FORMAT_TIME;
 		if(msg.send_time > EnigmaTime.GetMilisSinceMidnight()){
 			Final_Format = FORMAT_DATE + FORMAT_TIME;
 		}
-		String formatedTime;
+		String formattedTime;
 
-		formatedTime = EnigmaTime.GetFormattedTime(msg.send_time,Final_Format);
-		formatedTime = "[" + formatedTime + "]";
+		formattedTime = EnigmaTime.GetFormattedTime(msg.send_time,Final_Format);
+		formattedTime = "[" + formattedTime + "]";
 		String Username = "UNKNOWN";
 		if(Arrays.equals(msg.FromAddr,FriendsPublicKey))
 			Username = FUsername;
@@ -88,14 +90,12 @@ public class EnigmaMessages implements Serializable {
 				Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
 			Username = Enigma.Username;
 
-		Username = Username + ":";
-		return formatedTime + Username + msg.messageData;
+		return formattedTime + Username + ":" + msg.messageData;
 	}
-
-	public List<Message> Get_latest(int n){
+	private List<TextMessage> Get_latest(int n){
 		Long[] s = (Long[])chat_log_latest.keySet().toArray();
 
-		List<Message> rtr = new ArrayList<>();
+		List<TextMessage> rtr = new ArrayList<>();
 
 		synchronized (lockObject) {
 			int to_purge = s.length - EnigmaFriendManager.Message_Latest_cache;

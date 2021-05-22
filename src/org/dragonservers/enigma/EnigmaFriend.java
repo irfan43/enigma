@@ -2,6 +2,8 @@ package org.dragonservers.enigma;
 
 import javax.crypto.*;
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
@@ -22,9 +24,11 @@ public class EnigmaFriend implements Serializable {
 
 	public String friendFile;
 
-	public EnigmaFriend(PublicKey publicKey,String username){
+	public EnigmaFriend(PublicKey publicKey,String username) throws GeneralSecurityException, IOException {
 		friendsPublicKey = publicKey;
 		friendsUsername = username;
+		enigmaMessages = new EnigmaMessages(friendsUsername,friendsPublicKey);
+		saveMessagesToFile();
 	}
 	//this is having all the data need to start a key X
 	public String GetIntroductionToken() throws GeneralSecurityException {
@@ -46,14 +50,13 @@ public class EnigmaFriend implements Serializable {
 		sgn.update(DHKeyPair.getPublic().getEncoded());
 		enh.SetValue("Sign",
 				Base64.getEncoder().encodeToString(sgn.sign()));
-		TryToMakeSecret(); //confirm if this is necessary
+		//TryToMakeSecret(); //confirm if this is necessary
 		return enh.GetHeader(true);
 	}
-	public void LoadIntroductionToken(String token) throws GeneralSecurityException{
-		EnigmaNetworkHeader tkn = new EnigmaNetworkHeader(token);
-		byte[] TherePublicKey = Base64.getDecoder().decode(tkn.GetValue("My_RSA_PublicKey"));
-		byte[] OurReportedPublic = Base64.getDecoder().decode(tkn.GetValue("UR_RSA_PublicKey"));
-		byte[] ThereDHPublicKey = Base64.getDecoder().decode(tkn.GetValue("DH_PublicKey"));
+	public void LoadIntroductionToken(EnigmaNetworkHeader token) throws GeneralSecurityException{
+		byte[] TherePublicKey = Base64.getDecoder().decode(token.GetValue("My_RSA_PublicKey"));
+		byte[] OurReportedPublic = Base64.getDecoder().decode(token.GetValue("UR_RSA_PublicKey"));
+		byte[] ThereDHPublicKey = Base64.getDecoder().decode(token.GetValue("DH_PublicKey"));
 
 		if(Arrays.equals(OurReportedPublic,
 				Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
@@ -67,6 +70,9 @@ public class EnigmaFriend implements Serializable {
 		FriendsDHPbk = kf.generatePublic(new X509EncodedKeySpec(ThereDHPublicKey));
 		TryToMakeSecret();
 
+	}
+	public boolean IsIntroduced(){
+		return (sharedSecret != null);
 	}
 	private void TryToMakeSecret() throws GeneralSecurityException {
 		if(FriendsDHPbk != null && sharedSecret == null){
@@ -89,7 +95,28 @@ public class EnigmaFriend implements Serializable {
 		DHKeyPair = kpg.generateKeyPair();
 	}
 
+	public void pushMessage(byte[] data)
+			throws GeneralSecurityException, IOException, ClassNotFoundException, IllegalArgumentException {
+		loadIfNotLoaded();
+		enigmaMessages.PutMessage(EnigmaCrypto.AESDecrypt(data,sharedSecret) );
+		saveMessagesToFile();
+	}
+	public EnigmaPacket sendMessage(String data) throws GeneralSecurityException, IOException, ClassNotFoundException {
+		loadIfNotLoaded();
+		EnigmaPacket ep = new EnigmaPacket(Enigma.OurKeyHandler.GetPublicKey(),friendsPublicKey);
+		byte[] Cmdheader = "Text".getBytes(StandardCharsets.UTF_8);
+		ByteBuffer bb = ByteBuffer.allocate(4).putInt(Cmdheader.length);
+		ep.update(bb.array());
+		ep.update(Cmdheader);
+		byte[] TMEncoded = EnigmaCrypto.AESEncrypt(
+				enigmaMessages.SendMessage(data,Enigma.OurKeyHandler.GetPrivateKey()),sharedSecret );
+		ByteBuffer bbtm = ByteBuffer.allocate(4).putInt(TMEncoded.length);
+		ep.update(bbtm.array());
+		ep.update(TMEncoded);
+		return ep;
+	}
 	public void loadMessagesFromFile() throws GeneralSecurityException, IOException, ClassNotFoundException {
+		//TODO handle deleted messages
 		if(friendsUsername == null)
 			initializeFile();
 		else{
@@ -97,7 +124,7 @@ public class EnigmaFriend implements Serializable {
 			final Cipher c = Cipher.getInstance("AES");
 
 			final KeyGenerator kg = KeyGenerator.getInstance("AES");
-			kg.init(new SecureRandom(sharedSecret));
+			kg.init(new SecureRandom(Enigma.EncryptionPassword));
 			final SecretKey key = kg.generateKey();
 			c.init(Cipher.DECRYPT_MODE,key);
 			CipherInputStream cipherInputStream = new CipherInputStream(is,c);
@@ -115,7 +142,7 @@ public class EnigmaFriend implements Serializable {
 		final Cipher c = Cipher.getInstance("AES");
 
 		final KeyGenerator kg = KeyGenerator.getInstance("AES");
-		kg.init(new SecureRandom(sharedSecret));
+		kg.init(new SecureRandom(Enigma.EncryptionPassword));
 		final SecretKey key = kg.generateKey();
 
 		c.init(Cipher.ENCRYPT_MODE,key);
@@ -126,6 +153,10 @@ public class EnigmaFriend implements Serializable {
 		objectOutputStream.close();
 		cipherOutputStream.close();
 		os.close();
+	}
+	private void loadIfNotLoaded() throws GeneralSecurityException, IOException, ClassNotFoundException {
+		if(enigmaMessages == null)
+			loadMessagesFromFile();
 	}
 	private void initializeFile() throws GeneralSecurityException, IOException {
 		int nchars = 5;
@@ -144,5 +175,88 @@ public class EnigmaFriend implements Serializable {
 		for (int i = 0; i < nChars; i++)
 			sb.append(availChars.charAt(rnd.nextInt(availChars.length())));
 		return sb.toString();
+	}
+
+	public void OpenMessageWindow(){
+		InputStreamReader isr = new InputStreamReader(System.in);
+		BufferedReader inputBuffer = new BufferedReader(isr);
+		String text;
+		String footer = null;
+		while (true) {
+			EnigmaCLI.CLS();
+			PrintNLines(10);
+			System.out.println("\t== Chat with " + friendsUsername + " ==");
+			System.out.print( enigmaMessages.GetRendered(35) );
+			System.out.print(footer);
+
+			System.out.println(":-");
+			try {
+				if(inputBuffer.ready()){
+					text = inputBuffer.readLine();
+					if(text.startsWith("!!")){
+						text = text.substring(1);
+						sendMessage(text);
+					}else if(text.startsWith("!")){
+						footer = HandleMessageCommand(text);
+					}else if(!text.equals("")){
+						footer = "";
+						sendMessage(text);
+					}else {
+						footer = "";
+					}
+				}
+			} catch (IOException  e) {
+				footer = ("ERROR: input buffer IO Exception\n");
+			}catch (GeneralSecurityException | ClassNotFoundException e){
+				footer = ("ERROR: while Sending Message\n");
+			}
+			if(footer != null){
+				if(footer.equals("==quit")){
+					break;
+				}
+			}
+		}
+	}
+
+	private String HandleMessageCommand(String text) {
+		StringBuilder rtr = new StringBuilder();
+		switch (text.substring(1).toLowerCase()){
+			case "help" ->{
+				rtr.append("\tHelp\n" +
+						"!quit Exits the Messaging window back to the friends list\n" +
+						"!info prints the information of the friend your chatting with\n" +
+						"!help does something???? i think\n" +
+						"you can also use the first char of each command\n"
+				);
+			}
+			case "info", "i" -> {
+				rtr.append("\t info \n");
+			}
+			case "quit", "q", "exit" -> {
+				rtr.append("==quit");
+			}
+			/**
+			 *TODO add rerender option
+			 * 	window size options
+			 * 	memory of the window sizes
+			 * 	softwrapping
+			 * 	color scheme for each chat
+			 * 	quick switching
+			 * 	notify message from other person has come in
+			 *
+			 */
+
+
+		}
+		return rtr.toString();
+	}
+
+	private void PrintNLines(int n) {
+		StringBuilder sb = new StringBuilder();
+		for (int j = 0; j < n; j++) {
+			sb.append("\n");
+		}
+		System.out.print(sb);
+
 	}
 }

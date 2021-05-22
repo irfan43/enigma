@@ -42,7 +42,11 @@ public class EnigmaServerConnection {
         enigmaSession = new EnigmaSession("",1);
     }
     public boolean SessionExpired(){
-        return !enigmaSession.IsValid();
+        boolean rtr;
+        synchronized (lockObject){
+            rtr = !enigmaSession.IsValid();
+        }
+        return rtr;
     }
     public PublicKey GetPublicKey() throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
         Socket sock = new Socket(ServerIP,ServerPort);
@@ -65,39 +69,195 @@ public class EnigmaServerConnection {
         return EnigmaKeyHandler.PublicKeyFromEnc(publicKeyEnc);
     }
     public void LogIn() throws IOException, GeneralSecurityException {
-        EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
-        enh.SetValue("PublicKey",
-                Base64.getEncoder().encodeToString(
-                        Enigma.OurKeyHandler.GetPublicKey().getEncoded()));
+        synchronized (lockObject) {
+            if(!enigmaSession.IsValid()) {
+                EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
+                enh.SetValue("PublicKey", Base64
+                        .getEncoder()
+                        .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()));
 
-        String headerUTC = "" + EnigmaTime.GetUnixTime();
-        enh.SetValue("password",Base64.getEncoder().encodeToString(
-                EnigmaUser.HashPasswordVerification(Enigma.LoginPassword, headerUTC)));
-        enh.SetValue("headerUTC",headerUTC);
+                String headerUTC = "" + EnigmaTime.GetUnixTime();
+                enh.SetValue("password", Base64.getEncoder().encodeToString(
+                        EnigmaUser.HashPasswordVerification(Enigma.LoginPassword, headerUTC)));
+                enh.SetValue("headerUTC", headerUTC);
+                String header = enh.GetHeader(true);
+                Socket sock = new Socket(ServerIP, ServerPort);
+                DataInputStream dis = new DataInputStream(sock.getInputStream());
+                DataOutputStream dos = new DataOutputStream(sock.getOutputStream());
+                SendVersion(dos, dis);
+                WriteBlockLine(FollowingEncrypted, dos);
+                byte[] sharedSecret = ECDHHandshake(dos, dis);
+                String keyXSuccessCode = ReadBlockLine(dis);
+                if (keyXSuccessCode.contains("BAD"))
+                    throw new GeneralSecurityException("Key Exchange Failed");
+                WriteEncryptedLine(dos, LoginCommand, sharedSecret);
+                WriteEncryptedLine(dos, header, sharedSecret);
+
+                String resp = ReadEncryptedLine(dis, sharedSecret);
+                if (resp.contains("BAD"))
+                    throw new IOException("Ran Into Error Server Message:-" + resp);
+                EnigmaNetworkHeader responseHeader = new EnigmaNetworkHeader(ReadEncryptedLine(dis, sharedSecret));
+
+                String sesID = responseHeader.GetValue("SessionID");
+                enigmaSession = new EnigmaSession(sesID, EnigmaTime.GetUnixTime() +  3600 - 50);
+            }
+        }
+    }
+
+    public String GetUsername(PublicKey publicKey) throws GeneralSecurityException, IOException {
+        if(SessionExpired())
+            LogIn();
+
+        EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
+
+        enh.SetValue("SessionID", enigmaSession.SessionID );
+        enh.SetValue("PublicKey", Base64.getEncoder()
+                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+        enh.SetValue("Search-PublicKey",Base64
+                .getEncoder().encodeToString(publicKey.getEncoded()));
         String header = enh.GetHeader(true);
 
         Socket sock = new Socket(ServerIP,ServerPort);
         DataInputStream dis = new DataInputStream( sock.getInputStream() );
         DataOutputStream dos = new DataOutputStream(sock.getOutputStream());
         SendVersion(dos,dis);
+
         WriteBlockLine( FollowingEncrypted , dos);
         byte[] sharedSecret = ECDHHandshake(dos,dis);
         String keyXSuccessCode = ReadBlockLine(dis);
         if(keyXSuccessCode.contains("BAD"))
             throw new GeneralSecurityException("Key Exchange Failed");
-        WriteEncryptedLine(dos,LoginCommand ,sharedSecret);
-        WriteEncryptedLine(dos, header,sharedSecret);
 
+        //TODO figure out someway of verifying the whole thing went well
+        //  maybe send the servers utc time
+        WriteEncryptedLine(dos, GetUsernameCommand,sharedSecret);
+        WriteEncryptedLine(dos, header, sharedSecret);
         String resp = ReadEncryptedLine(dis,sharedSecret);
-        if(resp.contains("BAD"))
-            throw new IOException("Ran Into Error Server Message:-" + resp);
-        EnigmaNetworkHeader responseHeader = new EnigmaNetworkHeader(ReadEncryptedLine(dis,sharedSecret));
-
-        String sesID = responseHeader.GetValue("SessionID");
-        enigmaSession = new EnigmaSession(sesID,EnigmaTime.GetUnixTime() + 3550);
+        if(!resp.contains("GOOD"))
+            throw new IOException("Bad Server Response GetPubkey " + resp);
+        String foundUsername = null;
+        resp = ReadEncryptedLine(dis,sharedSecret);
+        if(resp.contains("Found")) {
+            EnigmaNetworkHeader responseHeader = new EnigmaNetworkHeader(resp);
+            foundUsername = responseHeader.GetValue("Found-Username");
+        }
+        return foundUsername;
     }
+    public PublicKey GetUserPublicKey(String username) throws GeneralSecurityException, IOException {
+        if(SessionExpired()){
+            LogIn();
+        }
 
-    public void RegisterUser(String registrationCode, EnigmaKeyHandler enigmaKeyHandler,byte[] passwordHash) throws IOException, GeneralSecurityException {
+        EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
+
+
+        enh.SetValue("SessionID", enigmaSession.SessionID );
+        enh.SetValue("PublicKey", Base64.getEncoder()
+                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+        enh.SetValue("Search-Username:",username);
+        String header = enh.GetHeader(true);
+
+        Socket sock = new Socket(ServerIP,ServerPort);
+        DataInputStream dis = new DataInputStream( sock.getInputStream() );
+        DataOutputStream dos = new DataOutputStream(sock.getOutputStream());
+        SendVersion(dos,dis);
+
+        WriteBlockLine( FollowingEncrypted , dos);
+        byte[] sharedSecret = ECDHHandshake(dos,dis);
+        String keyXSuccessCode = ReadBlockLine(dis);
+        if(keyXSuccessCode.contains("BAD"))
+            throw new GeneralSecurityException("Key Exchange Failed");
+
+        //TODO figure out someway of verifying the whole thing went well
+        //  maybe send the servers utc time
+        WriteEncryptedLine(dos, GetUserPublicKeyCommand,sharedSecret);
+        WriteEncryptedLine(dos, header, sharedSecret);
+        String resp = ReadEncryptedLine(dis,sharedSecret);
+        if(!resp.contains("GOOD"))
+            throw new IOException("Bad Server Response GetPubkey " + resp);
+        resp = ReadEncryptedLine(dis,sharedSecret);
+        PublicKey pbk = null;
+        if(!resp.contains("DOES_NOT_EXIST")){
+            EnigmaNetworkHeader responseHeader = new EnigmaNetworkHeader(resp);
+            pbk = EnigmaKeyHandler.PublicKeyFromEnc(Base64
+                    .getDecoder().decode(responseHeader.GetValue("PublicKey")));
+        }
+        return pbk;
+    }
+    public EnigmaPacket GetPacket() throws IOException, GeneralSecurityException {
+        if(SessionExpired()){
+            LogIn();
+        }
+        EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
+
+
+        enh.SetValue("SessionID", enigmaSession.SessionID );
+        enh.SetValue("PublicKey", Base64.getEncoder()
+                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+        String header = enh.GetHeader(true);
+
+        Socket sock = new Socket(ServerIP,ServerPort);
+        DataInputStream dis = new DataInputStream( sock.getInputStream() );
+        DataOutputStream dos = new DataOutputStream(sock.getOutputStream());
+        SendVersion(dos,dis);
+
+        WriteBlockLine( FollowingEncrypted , dos);
+        byte[] sharedSecret = ECDHHandshake(dos,dis);
+        String keyXSuccessCode = ReadBlockLine(dis);
+        if(keyXSuccessCode.contains("BAD"))
+            throw new GeneralSecurityException("Key Exchange Failed");
+
+        //TODO figure out someway of verifying the whole thing went well
+        //  maybe send the servers utc time
+        WriteEncryptedLine(dos, GetPacketCommand,sharedSecret);
+        WriteEncryptedLine(dos, header, sharedSecret);
+        String resp = ReadEncryptedLine(dis,sharedSecret);
+        EnigmaPacket ep = null;
+        if(resp.contains("GOOD")){
+            resp = ReadEncryptedLine(dis,sharedSecret);
+            if(resp.contains("BLOB:")){
+                ep = new EnigmaPacket(ReadEncryptedBlock(dis,sharedSecret));
+            }
+        }else {
+            System.out.println("Failed to get Inbox");
+            throw new IOException("");
+        }
+        return ep;
+    }
+    public void SendPacket(EnigmaPacket ep) throws IOException, GeneralSecurityException {
+        if(SessionExpired()){
+            LogIn();
+        }
+        EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
+
+
+        enh.SetValue("SessionID", enigmaSession.SessionID );
+        enh.SetValue("PublicKey", Base64.getEncoder()
+                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+        String header = enh.GetHeader(true);
+
+        Socket sock = new Socket(ServerIP,ServerPort);
+        DataInputStream dis = new DataInputStream( sock.getInputStream() );
+        DataOutputStream dos = new DataOutputStream(sock.getOutputStream());
+        SendVersion(dos,dis);
+
+        WriteBlockLine( FollowingEncrypted , dos);
+        byte[] sharedSecret = ECDHHandshake(dos,dis);
+        String keyXSuccessCode = ReadBlockLine(dis);
+        if(keyXSuccessCode.contains("BAD"))
+            throw new GeneralSecurityException("Key Exchange Failed");
+
+        //TODO figure out someway of verifying the whole thing went well
+        //  maybe send the servers utc time
+        WriteEncryptedLine(dos, SendPacketCommand,sharedSecret);
+        WriteEncryptedLine(dos, header, sharedSecret);
+        WriteEncryptedBlock(dos,ep.GetBinary(Enigma.OurKeyHandler.GetPrivateKey()),sharedSecret);
+        String resp = ReadEncryptedLine(dis,sharedSecret);
+        if(!resp.contains("GOOD"))
+            System.out.println("Failed to Send Packet :- " + resp);
+    }
+    public void RegisterUser(String registrationCode, EnigmaKeyHandler enigmaKeyHandler,byte[] passwordHash)
+            throws IOException, GeneralSecurityException {
         EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
         enh.SetValue("registration-code",registrationCode);
         enh.SetValue("username", Enigma.Username);
@@ -210,6 +370,7 @@ public class EnigmaServerConnection {
             throw new IOException("EOF file Reached Prematurely");
         return block;
     }
+
 
 
     //Reading And Writing Encrypted Blocks
