@@ -154,7 +154,7 @@ public class EnigmaServerConnection {
         enh.SetValue("SessionID", enigmaSession.SessionID );
         enh.SetValue("PublicKey", Base64.getEncoder()
                 .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
-        enh.SetValue("Search-Username:",username);
+        enh.SetValue("Search-Username",username);
         String header = enh.GetHeader(true);
 
         Socket sock = new Socket(ServerIP,ServerPort);
@@ -174,7 +174,7 @@ public class EnigmaServerConnection {
         WriteEncryptedLine(dos, header, sharedSecret);
         String resp = ReadEncryptedLine(dis,sharedSecret);
         if(!resp.contains("GOOD"))
-            throw new IOException("Bad Server Response GetPubkey " + resp);
+            throw new IOException("Bad Server Response for GetPublicKey " + resp);
         resp = ReadEncryptedLine(dis,sharedSecret);
         PublicKey pbk = null;
         if(!resp.contains("DOES_NOT_EXIST")){

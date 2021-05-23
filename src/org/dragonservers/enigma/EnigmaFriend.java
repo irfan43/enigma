@@ -21,21 +21,24 @@ public class EnigmaFriend implements Serializable {
 	private byte[] sharedSecret;
 	public transient EnigmaMessages enigmaMessages;
 	public String friendsUsername;
-
+	private boolean GotToken,SentToken;
 	public String friendFile;
 
 	public EnigmaFriend(PublicKey publicKey,String username) throws GeneralSecurityException, IOException {
+
 		friendsPublicKey = publicKey;
 		friendsUsername = username;
 		enigmaMessages = new EnigmaMessages(friendsUsername,friendsPublicKey);
-		saveMessagesToFile();
+		GotToken = false;
+		SentToken = false;
+		initializeFile();
+		System.out.println("New Friend Object " + username + " " + friendFile);
 	}
 	//this is having all the data need to start a key X
 	public String GetIntroductionToken() throws GeneralSecurityException {
-		if(sharedSecret != null)
-			throw new IllegalArgumentException("Requested Introduction Token on Already Introduced Friend");
 		if(DHKeyPair == null)
 			GenerateKeyPair();
+		System.out.println("Introducing " + friendsUsername + " " + friendFile);
 
 		EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
 		enh.SetValue("My_RSA_PublicKey",
@@ -45,37 +48,57 @@ public class EnigmaFriend implements Serializable {
 		enh.SetValue("DH_PublicKey",
 				Base64.getEncoder().encodeToString(DHKeyPair.getPublic().getEncoded()));
 		Signature sgn = Signature.getInstance("SHA256withRSA");
+		sgn.initSign(Enigma.OurKeyHandler.GetPrivateKey());
 		sgn.update(Enigma.OurKeyHandler.GetPublicKey().getEncoded());
 		sgn.update(friendsPublicKey.getEncoded());
 		sgn.update(DHKeyPair.getPublic().getEncoded());
 		enh.SetValue("Sign",
 				Base64.getEncoder().encodeToString(sgn.sign()));
+		SentToken = true;
 		//TryToMakeSecret(); //confirm if this is necessary
 		return enh.GetHeader(true);
 	}
 	public void LoadIntroductionToken(EnigmaNetworkHeader token) throws GeneralSecurityException{
-		byte[] TherePublicKey = Base64.getDecoder().decode(token.GetValue("My_RSA_PublicKey"));
-		byte[] OurReportedPublic = Base64.getDecoder().decode(token.GetValue("UR_RSA_PublicKey"));
-		byte[] ThereDHPublicKey = Base64.getDecoder().decode(token.GetValue("DH_PublicKey"));
+		System.out.println("Got Intro to " + friendsUsername + " " + friendFile);
 
-		if(Arrays.equals(OurReportedPublic,
+		byte[] TherePublicKey = Base64
+				.getDecoder().decode(
+						token.GetValue("My_RSA_PublicKey"));
+		byte[] OurReportedPublic = Base64
+				.getDecoder().decode(
+						token.GetValue("UR_RSA_PublicKey"));
+		byte[] ThereDHPublicKey = Base64
+				.getDecoder().decode(
+						token.GetValue("DH_PublicKey"));
+		byte[] signature = Base64
+				.getDecoder().decode(
+						token.GetValue("Sign"));
+		if(!Arrays.equals(OurReportedPublic,
 				Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
 			throw new IllegalArgumentException("Report BAD RSA our Public Key in introduction token ");
-		if(Arrays.equals(TherePublicKey,
+		if(!Arrays.equals(TherePublicKey,
 				friendsPublicKey.getEncoded()))
 			throw new IllegalArgumentException("Report BAD RSA friends Public Key in introduction token ");
 
-		KeyFactory kf = KeyFactory.getInstance("EC");
+		Signature sgn = Signature.getInstance("SHA256withRSA");
+		sgn.initVerify(friendsPublicKey);
+		sgn.update(friendsPublicKey.getEncoded());
+		sgn.update(Enigma.OurKeyHandler.GetPublicKey().getEncoded());
+		sgn.update(ThereDHPublicKey);
+		if(!sgn.verify(signature))
+			throw new IllegalArgumentException("Bad Signature on introduction token");
 
+		KeyFactory kf = KeyFactory.getInstance("EC");
 		FriendsDHPbk = kf.generatePublic(new X509EncodedKeySpec(ThereDHPublicKey));
 		TryToMakeSecret();
-
+		GotToken = true;
 	}
 	public boolean IsIntroduced(){
-		return (sharedSecret != null);
+		return (GotToken && SentToken);
 	}
 	private void TryToMakeSecret() throws GeneralSecurityException {
 		if(FriendsDHPbk != null && sharedSecret == null){
+			System.out.println("MadeSecret");
 			if(DHKeyPair == null)
 				GenerateKeyPair();
 
@@ -117,16 +140,13 @@ public class EnigmaFriend implements Serializable {
 	}
 	public void loadMessagesFromFile() throws GeneralSecurityException, IOException, ClassNotFoundException {
 		//TODO handle deleted messages
-		if(friendsUsername == null)
+		if(friendsUsername == null) {
 			initializeFile();
-		else{
-			InputStream is = Files.newInputStream(Path.of(friendFile));
+		}else{
+			InputStream is = Files.newInputStream(Path.of("friends",friendFile));
 			final Cipher c = Cipher.getInstance("AES");
 
-			final KeyGenerator kg = KeyGenerator.getInstance("AES");
-			kg.init(new SecureRandom(Enigma.EncryptionPassword));
-			final SecretKey key = kg.generateKey();
-			c.init(Cipher.DECRYPT_MODE,key);
+			c.init(Cipher.DECRYPT_MODE,Enigma.AESEncryptionKey);
 			CipherInputStream cipherInputStream = new CipherInputStream(is,c);
 
 			ObjectInputStream objectInputStream = new ObjectInputStream(cipherInputStream);
@@ -138,14 +158,11 @@ public class EnigmaFriend implements Serializable {
 		}
 	}
 	public void saveMessagesToFile() throws GeneralSecurityException, IOException {
-		OutputStream os = Files.newOutputStream(Path.of(friendFile));
+		Files.createDirectories(Path.of("friends"));
+		OutputStream os = Files.newOutputStream(Path.of("friends",friendFile));
 		final Cipher c = Cipher.getInstance("AES");
 
-		final KeyGenerator kg = KeyGenerator.getInstance("AES");
-		kg.init(new SecureRandom(Enigma.EncryptionPassword));
-		final SecretKey key = kg.generateKey();
-
-		c.init(Cipher.ENCRYPT_MODE,key);
+		c.init(Cipher.ENCRYPT_MODE,Enigma.AESEncryptionKey);
 		CipherOutputStream cipherOutputStream = new CipherOutputStream(os,c);
 
 		ObjectOutputStream objectOutputStream = new ObjectOutputStream(cipherOutputStream);
@@ -177,34 +194,36 @@ public class EnigmaFriend implements Serializable {
 		return sb.toString();
 	}
 
-	public void OpenMessageWindow(){
+	public void OpenMessageWindow() throws GeneralSecurityException, IOException, ClassNotFoundException {
+		loadIfNotLoaded();
 		InputStreamReader isr = new InputStreamReader(System.in);
 		BufferedReader inputBuffer = new BufferedReader(isr);
 		String text;
-		String footer = null;
+		String footer = "";
 		while (true) {
 			EnigmaCLI.CLS();
-			PrintNLines(10);
+			PrintNLines(100);
 			System.out.println("\t== Chat with " + friendsUsername + " ==");
 			System.out.print( enigmaMessages.GetRendered(35) );
 			System.out.print(footer);
 
 			System.out.println(":-");
 			try {
-				if(inputBuffer.ready()){
-					text = inputBuffer.readLine();
-					if(text.startsWith("!!")){
-						text = text.substring(1);
-						sendMessage(text);
-					}else if(text.startsWith("!")){
-						footer = HandleMessageCommand(text);
-					}else if(!text.equals("")){
-						footer = "";
-						sendMessage(text);
-					}else {
-						footer = "";
-					}
+				EnigmaPacket ep = null;
+				text = inputBuffer.readLine();
+				if(text.startsWith("!!")){
+					text = text.substring(1);
+					ep = sendMessage(text);
+				}else if(text.startsWith("!")){
+					footer = HandleMessageCommand(text);
+				}else if(!text.equals("")){
+					footer = "";
+					ep = sendMessage(text);
+				}else {
+					footer = "";
 				}
+				if(ep != null)
+					EnigmaPacketFactory.QueueOutgoingPacket(ep);
 			} catch (IOException  e) {
 				footer = ("ERROR: input buffer IO Exception\n");
 			}catch (GeneralSecurityException | ClassNotFoundException e){
@@ -214,6 +233,11 @@ public class EnigmaFriend implements Serializable {
 				if(footer.equals("==quit")){
 					break;
 				}
+			}
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
 		}
 	}

@@ -1,14 +1,12 @@
 package org.dragonservers.enigma;
 
-import java.awt.*;
+
 import java.io.Console;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.util.Base64;
-import java.util.Locale;
+import java.util.*;
 
 public class EnigmaCLI {
 	public static final String ANSI_CLS = "\u001b[2J";
@@ -37,44 +35,54 @@ public class EnigmaCLI {
 		}
 
 		StartBackgroundThread();
+		try {
+			while (true) {
+				CLS();
+				System.out.println("\t== Enigma ==");
+				System.out.println("\tF - Friends");
+				System.out.println("\tI - Inbound Request");
+				System.out.println("\tS - Send a Request");
 
-		while (true){
-			CLS();
-			System.out.println("\t== Enigma ==");
-			System.out.println("\tF - Friends");
-			System.out.println("\tI - Inbound Request");
-			System.out.println("\tS - Send a Request");
-
-			System.out.println("\tQ - Quit");
-			String resp = Enigma.scn.nextLine().toLowerCase();
-			if(resp.startsWith("q"))
-				break;
-			switch (resp.substring(0,1)){
-				case "f" -> {
-					DisplayFriends();
-				}
-				case "i" -> {
-					DisplayInboundRequest();
-				}
-				case "s" -> {
-					DisplayOutboundRequest();
-				}
-				default -> {
-					System.out.println("Unknown Command " + resp);
+				System.out.println("\tQ - Quit");
+				String resp = Enigma.scn.nextLine().toLowerCase();
+				if (resp.startsWith("q"))
+					break;
+				if(resp.length() > 0) {
+					switch (resp.substring(0, 1)) {
+						case "f" -> {
+							DisplayFriends();
+						}
+						case "i" -> {
+							DisplayInboundRequest();
+						}
+						case "s" -> {
+							DisplayOutboundRequest();
+						}
+						default -> {
+							System.out.println("Unknown Command " + resp);
+						}
+					}
 				}
 			}
+		}catch (Exception e){
+			System.out.println("We ran into a unexpected Exception ");
+			e.getMessage();
+			e.printStackTrace();
+			Enigma.scn.nextLine();
+		}finally {
+			//TODO any Save operation if needed
+			engimaBackgroundProcess.keep_Running = false;
+			enigmaInboxHandler.keep_Running = false;
+			EIHThread.interrupt();
+			backgroundThread.interrupt();
 		}
-		//TODO any Save operation if needed
-		engimaBackgroundProcess.keep_Running = false;
-		enigmaInboxHandler.keep_Running = false;
-		EIHThread.interrupt();
-		backgroundThread.interrupt();
-
 		try {
+			System.out.println("Saving");
 			EnigmaFriendManager.Save();
 		} catch (GeneralSecurityException | IOException e) {
 			System.out.println("Ran INTO error while Saving");
 			e.printStackTrace();
+			Enigma.scn.nextLine();
 		}
 		CLS();
 		System.out.println("=GOODBYE=");
@@ -92,6 +100,8 @@ public class EnigmaCLI {
 				publicKey = Enigma.TuringConnection.GetUserPublicKey(username);
 			}catch (Exception e){
 				System.out.println("Error While Trying to get Public Key From the Server");
+				e.getMessage();
+				e.printStackTrace();
 			}
 			if(publicKey == null){
 				System.out.println("Error Username \"" + username + "\" Does not Exist" );
@@ -148,12 +158,12 @@ public class EnigmaCLI {
 				break;
 			int responseID = -1;
 			try {
-				responseID = Integer.getInteger(resp.trim());
+				responseID = Integer.parseInt(resp.trim());
 			}catch (NumberFormatException e){
 				System.out.println("Invalid input");
 			}
 			if(responseID > 0 && responseID <= requestList.length) {
-				sentUsername = requestList[responseID];
+				sentUsername = requestList[responseID - 1];
 				System.out.println( "Confirm Send Request to " + sentUsername + "?" );
 				System.out.print( "Type \"SEND\" to confirm:-" );
 				String Confirmation = Enigma.scn.nextLine();
@@ -187,7 +197,9 @@ public class EnigmaCLI {
 					"\tUse !help to see a list of commands\n" +
 					"\tWe suggest You expand your terminal to display at least 40 lines\n"
 			);
-			String[] friends = (String[]) EnigmaFriendManager.GetLatestFriendsList().toArray();
+			List<String> friendsSet = EnigmaFriendManager.GetLatestFriendsList();
+			String[] friends = new String[friendsSet.size()];
+			friendsSet.toArray(friends);
 			PrintList(friends);
 
 			System.out.println("Q - Quit");
@@ -198,14 +210,20 @@ public class EnigmaCLI {
 				break;
 			int responseID;
 			try {
-				responseID = Integer.getInteger(resp.trim());
+				responseID = Integer.parseInt(resp.trim());
 			}catch (NumberFormatException e){
 				responseID = -2;
 			}
 			if(responseID > 0 && responseID <= friends.length){
-				EnigmaFriendManager.OpenMessageWindow(friends[responseID]);
+				try {
+					EnigmaFriendManager.OpenMessageWindow(friends[responseID - 1]);
+				} catch (GeneralSecurityException | IOException | ClassNotFoundException e) {
+					header = "Error Occurred While Opening Message Window\nERROR:-";
+					header += e.getMessage();
+					header += e.getStackTrace();
+				}
 			}else {
-				header = "Error:- Invalid Input\n";
+				header = "Invalid Input\n";
 			}
 
 		}
@@ -262,6 +280,7 @@ public class EnigmaCLI {
 	}
 
 	public static void CLS(){
+		System.out.println("Cleared");
 		if(IsWindows){
 			try {
 				new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();

@@ -1,5 +1,6 @@
 package org.dragonservers.enigma;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
@@ -9,7 +10,7 @@ import java.util.*;
 
 public class EnigmaMessages implements Serializable {
 
-	private final transient Object lockObject = new Object();
+
 	private transient String LastRender;
 	private transient String[] LastRenderArray;
 	private final byte[] FriendsPublicKey;
@@ -24,23 +25,24 @@ public class EnigmaMessages implements Serializable {
 		chat_log_latest = new HashMap<>();
 		chat_log = new HashMap<>();
 	}
-	public byte[] SendMessage(String msg, PrivateKey ppk) throws GeneralSecurityException {
+	public byte[] SendMessage(String msg, PrivateKey ppk) throws GeneralSecurityException, IOException {
 		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, Enigma.OurKeyHandler.GetPublicKey().getEncoded(),Enigma.OurKeyHandler.GetPrivateKey() );
-		synchronized (lockObject) {
+		synchronized (this) {
 			chat_log.put(toSend.send_time, toSend);
+			chat_log_latest.put(toSend.send_time, toSend);
 		}
 		return toSend.getBinary();
 	}
-	public boolean PutMessage(byte[] msg_bin) throws GeneralSecurityException {
+	public boolean PutMessage(byte[] msg_bin) throws GeneralSecurityException, IOException {
 		TextMessage recvd = new TextMessage(msg_bin);
 		boolean valid;
-		if(Arrays.equals(recvd.FromAddr,FriendsPublicKey))
+		if(!Arrays.equals(recvd.FromAddr,FriendsPublicKey))
 			throw new IllegalArgumentException("MESSAGE BAD FROM ADDRESS");
-		if(Arrays.equals(recvd.ToAddr, Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
+		if(!Arrays.equals(recvd.ToAddr, Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
 			throw new IllegalArgumentException("MESSAGE BAD TO ADDRESS");
 		valid = recvd.verify();
 		if (valid)
-			synchronized (lockObject) {
+			synchronized (this) {
 				chat_log.put(recvd.send_time, recvd);
 				chat_log_latest.put(recvd.send_time, recvd);
 			}
@@ -93,22 +95,23 @@ public class EnigmaMessages implements Serializable {
 		return formattedTime + Username + ":" + msg.messageData;
 	}
 	private List<TextMessage> Get_latest(int n){
-		Long[] s = (Long[])chat_log_latest.keySet().toArray();
+
+		if(n > EnigmaFriendManager.Message_Latest_cache)
+			n = EnigmaFriendManager.Message_Latest_cache;
 
 		List<TextMessage> rtr = new ArrayList<>();
-
-		synchronized (lockObject) {
+		synchronized (this) {
+			Long[] s = new Long[chat_log_latest.size()];
+			chat_log_latest.keySet().toArray(s);
+			Arrays.sort(s);
+			//purge from latest
 			int to_purge = s.length - EnigmaFriendManager.Message_Latest_cache;
-			if(  to_purge > 0) {
-				Arrays.sort(s);
-				for (int i = 0; i < (to_purge); i++) {
-					chat_log_latest.remove(s[i]);
-				}
+			for (int i = 0; i < (to_purge); i++) {
+				chat_log_latest.remove(s[i]);
 			}
-			int end = s.length - n - 1;
-			if(to_purge > end)
-				end = to_purge;
-			for (int i = s.length - 1; i >= end; i--) {
+			if(n > s.length)
+				n = s.length;
+			for (int i = 0; i < n; i++) {
 				rtr.add(chat_log_latest.get(s[i]) );
 			}
 		}

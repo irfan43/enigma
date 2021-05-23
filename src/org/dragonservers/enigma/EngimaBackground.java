@@ -12,7 +12,7 @@ public class EngimaBackground implements Runnable{
 			//check EnigmaPackets
 			EnigmaPacketFactory.HandleInboundPackets();
 			try {
-				wait();
+				Thread.sleep(500);
 			}catch (InterruptedException ignored){}
 
 		}

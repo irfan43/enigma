@@ -7,7 +7,6 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.util.*;
 
 public class EnigmaFriendManager {
@@ -42,11 +41,17 @@ public class EnigmaFriendManager {
 	public static String GetIntroductionToken(String friendsUsername,PublicKey friendsPublicKey) throws GeneralSecurityException, IOException {
 		if(friendsPublicKey == null)
 			throw new IllegalArgumentException("BAD USERNAME DNE");
-		EnigmaFriend ef = new EnigmaFriend(friendsPublicKey,friendsUsername);
-		AddFriend(ef);
-		return ef.GetIntroductionToken();
+		EnigmaFriend ef  = GetFriendFromPublicKey(friendsPublicKey);
+		String token;
+		if(ef == null){
+			ef = new EnigmaFriend(friendsPublicKey,friendsUsername);
+			AddFriend(ef);
+		}
+		token = ef.GetIntroductionToken();
+		Save();
+		return token;
 	}
-		public static void HandleNewIntroductionToken(String token) throws GeneralSecurityException, IOException {
+	public static void HandleNewIntroductionToken(String token) throws GeneralSecurityException, IOException {
 		//either we sent the first token and this is there response
 		//or
 		//they sent the first introduction Token
@@ -71,6 +76,7 @@ public class EnigmaFriendManager {
 			ef.LoadIntroductionToken(tkn);
 			AddFriend(ef);
 		}else {
+			System.out.println("Got here ");
 			EnigmaFriend ef = GetFriendFromUsername(username);
 			ef.LoadIntroductionToken(tkn);
 		}
@@ -85,16 +91,13 @@ public class EnigmaFriendManager {
 	}
 	//IO Functions
 	public static void Save() throws GeneralSecurityException, IOException {
-		final KeyGenerator kg = KeyGenerator.getInstance("AES");
-		kg.init(new SecureRandom(Enigma.EncryptionPassword));
-		final SecretKey key = kg.generateKey();
-
 		final Cipher c = Cipher.getInstance("AES");
-		c.init(Cipher.ENCRYPT_MODE,key);
+		c.init(Cipher.ENCRYPT_MODE,Enigma.AESEncryptionKey);
 
 		OutputStream os = Files.newOutputStream(save_file);
 		CipherOutputStream cos = new CipherOutputStream(os,c);
 		ObjectOutputStream oos = new ObjectOutputStream(cos);
+
 		synchronized (lockObject) {
 			oos.writeObject(friendMap);
 			oos.writeObject(friendUsernameMap);
@@ -114,12 +117,8 @@ public class EnigmaFriendManager {
 		if(IsFileMissing())
 			throw new IOException("FILE Friend List NOT FOUND ");
 
-		final KeyGenerator kg = KeyGenerator.getInstance("AES");
-		kg.init(new SecureRandom(Enigma.EncryptionPassword));
-		final SecretKey key = kg.generateKey();
-
 		final Cipher c = Cipher.getInstance("AES");
-		c.init(Cipher.DECRYPT_MODE, key);
+		c.init(Cipher.DECRYPT_MODE, Enigma.AESEncryptionKey);
 
 		InputStream is = Files.newInputStream(save_file);
 		CipherInputStream cis = new CipherInputStream(is, c);
@@ -136,6 +135,8 @@ public class EnigmaFriendManager {
 	}
 	public static void InitialiseNewFile() throws GeneralSecurityException, IOException {
 		friendMap = new HashMap<>();
+		friendUsernameMap = new HashMap<>();
+		New_friends = new ArrayList<>();
 		Save();
 	}
 
@@ -144,8 +145,11 @@ public class EnigmaFriendManager {
 		return GetFriendFromUsername(username).sendMessage(data);
 	}
 	public static String[] GetRequestsList(){
-		String[] rtr = (String[]) New_friends.toArray();
-
+		String[] rtr;
+		synchronized (lockObject) {
+			rtr = new String[New_friends.size()];
+			New_friends.toArray(rtr);
+		}
 		if(rtr.length > 20){
 			rtr = Arrays.copyOf(rtr,20);
 		}
@@ -184,6 +188,11 @@ public class EnigmaFriendManager {
 		String username = GetUsernameFromPublicKey(publicKey);
 		return GetFriendFromUsername(username);
 	}
+	private static EnigmaFriend GetFriendFromPublicKey(PublicKey friendsPublicKey) {
+		return GetFriendFromPublicKey(
+				Base64.getEncoder().encodeToString(friendsPublicKey.getEncoded())
+		);
+	}
 	public static EnigmaFriend GetFriendFromUsername(String username){
 		EnigmaFriend ef;
 		synchronized (lockObject){
@@ -205,7 +214,7 @@ public class EnigmaFriendManager {
 		return foundName;
 	}
 
-	public static void OpenMessageWindow(String frusername) {
+	public static void OpenMessageWindow(String frusername) throws GeneralSecurityException, IOException, ClassNotFoundException {
 		EnigmaFriend ef = GetFriendFromUsername(frusername);
 		ef.OpenMessageWindow();
 	}

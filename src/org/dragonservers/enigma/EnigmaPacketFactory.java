@@ -35,7 +35,7 @@ public class EnigmaPacketFactory{
 					InboundQueue.add(incomingPacket);
 					done = false;
 				}
-				EnigmaCLI.backgroundThread.notify();
+
 			}else {
 				System.out.println("ERROR:Packet Unsigned or Addressed to someone else");
 			}
@@ -76,6 +76,8 @@ public class EnigmaPacketFactory{
 			} catch (Exception e) {
 				//TODO stop ignoring these errors
 				System.out.println("Error: While Processing Packet");
+				e.getMessage();
+				e.printStackTrace();
 			}
 		}
 	}
@@ -83,9 +85,11 @@ public class EnigmaPacketFactory{
 		EnigmaPacket enigmaPacket = null;
 		synchronized (Outbound_Lock){
 			if(!OutboundQueue.isEmpty())
-				enigmaPacket = InboundQueue.remove(0);
+				enigmaPacket = OutboundQueue.remove(0);
 		}
 		if(enigmaPacket != null){
+			//TODO if failed to send packet redo send
+
 			Enigma.TuringConnection.SendPacket(enigmaPacket);
 		}
 		return (enigmaPacket != null);
@@ -104,10 +108,10 @@ public class EnigmaPacketFactory{
 		byte[] block = ReadBlock(bis);
 		switch (Command){
 			case "Text" -> {
-
 				EnigmaFriendManager. receivedMessage(block,enigmaPacket.getFromAddr().getEncoded());
 			}
 			case "START_KEY_X" -> {
+
 				EnigmaFriendManager.HandleNewIntroductionToken(
 						new String(block));
 			}
@@ -129,13 +133,18 @@ public class EnigmaPacketFactory{
 	private static void QueueToken(String token,String targetUsername){
 		EnigmaPacket ep = new EnigmaPacket(Enigma.OurKeyHandler.GetPublicKey(),
 				EnigmaFriendManager.GetPublicKeyFromUsername(targetUsername));
-		PushBlockOnPacket(ep,
-				"START_KEY_X".getBytes(StandardCharsets.UTF_8));
-		PushBlockOnPacket(ep,
-				token.getBytes(StandardCharsets.UTF_8));
+		try {
+			PushBlockOnPacket(ep,
+					"START_KEY_X".getBytes(StandardCharsets.UTF_8));
+			PushBlockOnPacket(ep,
+					token.getBytes(StandardCharsets.UTF_8));
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.out.println("ERROR Building Packet");
+		}
 		QueueOutgoingPacket(ep);
 	}
-	private static void PushBlockOnPacket(EnigmaPacket ep, byte[] data){
+	private static void PushBlockOnPacket(EnigmaPacket ep, byte[] data) throws  IOException{
 		ep.update(ByteBuffer
 				.allocate(4)
 				.putInt(data.length)
