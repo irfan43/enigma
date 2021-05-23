@@ -12,7 +12,7 @@ public class EnigmaMessages implements Serializable {
 
 
 	private transient String LastRender;
-	private transient String[] LastRenderArray;
+	public transient String[] LastRenderArray;
 	private final byte[] FriendsPublicKey;
 	private final String FUsername;
 	private final HashMap<Long, TextMessage> chat_log;

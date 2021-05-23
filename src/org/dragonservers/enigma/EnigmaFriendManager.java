@@ -146,10 +146,22 @@ public class EnigmaFriendManager {
 	}
 	public static String[] GetRequestsList(){
 		String[] rtr;
+		//WARNING UNTESTED CODE SNIP
 		synchronized (lockObject) {
 			rtr = new String[New_friends.size()];
 			New_friends.toArray(rtr);
 		}
+		List<String> temp = new ArrayList<>();
+
+		for (String name :New_friends) {
+			synchronized (lockObject){
+				EnigmaFriend ef = GetFriendFromUsername(name);
+				if(ef != null && !ef.IsIntroduced())
+					temp.add(name);
+			}
+		}
+		rtr = new String[temp.size()];
+		temp.toArray(rtr);
 		if(rtr.length > 20){
 			rtr = Arrays.copyOf(rtr,20);
 		}

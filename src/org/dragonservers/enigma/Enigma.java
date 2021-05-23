@@ -32,8 +32,16 @@ public class Enigma {
     public final static String EnigmaVersion = "1.00";
     public static SecretKey AESEncryptionKey;
     //TODO handle a quick fresh install
-    public static void main(String[] args) {
-
+    public static void main(String[] args) throws IOException {
+//        int resp= -1;
+//        while (resp != 1){
+//            resp = RawConsoleInput.read(false);
+//            if(resp >= 0){
+//                System.out.println("code " +  resp);
+//            }
+//        }
+//        System.exit(-1);
+//        RawConsoleInput.resetConsoleMode();
         System.out.println( "Enigma " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
         //Start of Enigma
 
@@ -203,7 +211,7 @@ public class Enigma {
         while(redo) {
             redo = false;
             try {
-                System.out.println("Starting Registration Exception");
+                System.out.println("Starting Registration ");
                 TuringConnection.RegisterUser(rgCode, OurKeyHandler, LoginPassword);
             } catch (IOException | GeneralSecurityException e) {
                 System.out.println("Error while communicating with server");

@@ -9,9 +9,7 @@ import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Random;
+import java.util.*;
 
 public class EnigmaFriend implements Serializable {
 	//these are transient for security Reasons
@@ -21,7 +19,7 @@ public class EnigmaFriend implements Serializable {
 	private byte[] sharedSecret;
 	public transient EnigmaMessages enigmaMessages;
 	public String friendsUsername;
-	private boolean GotToken,SentToken;
+	private boolean GotToken,SentToken,reDraw;
 	public String friendFile;
 
 	public EnigmaFriend(PublicKey publicKey,String username) throws GeneralSecurityException, IOException {
@@ -123,6 +121,7 @@ public class EnigmaFriend implements Serializable {
 		loadIfNotLoaded();
 		enigmaMessages.PutMessage(EnigmaCrypto.AESDecrypt(data,sharedSecret) );
 		saveMessagesToFile();
+		reDraw = true;
 	}
 	public EnigmaPacket sendMessage(String data) throws GeneralSecurityException, IOException, ClassNotFoundException {
 		loadIfNotLoaded();
@@ -197,49 +196,101 @@ public class EnigmaFriend implements Serializable {
 	public void OpenMessageWindow() throws GeneralSecurityException, IOException, ClassNotFoundException {
 		loadIfNotLoaded();
 		InputStreamReader isr = new InputStreamReader(System.in);
-		BufferedReader inputBuffer = new BufferedReader(isr);
 		String text;
 		String footer = "";
+		String inputBuffer = "";
+		reDraw = true;
+		int lines_msg_rendered = 35;
+		int blank_lines_to_Add;
 		while (true) {
-			EnigmaCLI.CLS();
-			PrintNLines(100);
-			System.out.println("\t== Chat with " + friendsUsername + " ==");
-			System.out.print( enigmaMessages.GetRendered(35) );
-			System.out.print(footer);
+			if(reDraw) {
 
-			System.out.println(":-");
+				String ren = enigmaMessages.GetRendered(35);
+				blank_lines_to_Add = lines_msg_rendered - enigmaMessages.LastRenderArray.length;
+				EnigmaCLI.CLS();
+				PrintNLines(100 - blank_lines_to_Add);
+				System.out.println("\t== Chat with " + friendsUsername + " ==");
+				PrintNLines( blank_lines_to_Add);
+
+				System.out.print(ren);
+
+				System.out.print(footer);
+				System.out.print( Enigma.Username + ":" + inputBuffer);
+				reDraw = false;
+			}
 			try {
-				EnigmaPacket ep = null;
-				text = inputBuffer.readLine();
-				if(text.startsWith("!!")){
-					text = text.substring(1);
-					ep = sendMessage(text);
-				}else if(text.startsWith("!")){
-					footer = HandleMessageCommand(text);
-				}else if(!text.equals("")){
-					footer = "";
-					ep = sendMessage(text);
-				}else {
-					footer = "";
+				int keyCode = RawConsoleInput.read(false);
+				if (keyCode >= 0) {
+					EnigmaPacket ep = null;
+					//TODO add some esc variables so we can handles special chars in ubuntu
+					char key = EnigmaConsoleUtil.GetChar(keyCode);
+					if(key > 0){
+						inputBuffer += (char)key;
+						System.out.print((char)keyCode);
+					}
+					if (keyCode == 3) {
+						System.out.println("Keyboard Interrupt");
+						System.exit(-1);
+					}
+					if((keyCode == 127 && !EnigmaCLI.IsWindows) ||
+							(keyCode == 8 && EnigmaCLI.IsWindows)){
+						reDraw = true;
+						inputBuffer = inputBuffer.substring(0,inputBuffer.length() - 1);
+					}
+					if( (keyCode == 10 && !EnigmaCLI.IsWindows) ||
+							(keyCode == 13 && EnigmaCLI.IsWindows) ) {
+						reDraw = true;
+						//if new line ie enter was sent
+						text = inputBuffer;
+						inputBuffer = "";
+						if (text.startsWith("!!")) {
+							text = text.substring(1);
+							ep = sendMessage(text);
+						} else if (text.startsWith("!")) {
+							footer = HandleMessageCommand(text);
+						} else if (!text.equals("")) {
+							footer = "";
+							ep = sendMessage(text);
+						} else {
+							footer = "";
+						}
+						if (ep != null)
+							EnigmaPacketFactory.QueueOutgoingPacket(ep);
+					}
+					if( (!EnigmaCLI.IsWindows) && keyCode == 27){
+						List<Integer> buff = new ArrayList<>();
+						do{
+							buff.add(keyCode);
+							keyCode = RawConsoleInput.read(false);
+							try {
+								Thread.sleep(3);
+							} catch (InterruptedException ignored){}
+						}while ( keyCode > 0);
+						if(buff.size() != 1){
+							footer = "Complex Key Input Not Supported";
+						}else {
+							//TODO handle ESC key input
+						}
+					}
 				}
-				if(ep != null)
-					EnigmaPacketFactory.QueueOutgoingPacket(ep);
 			} catch (IOException  e) {
 				footer = ("ERROR: input buffer IO Exception\n");
+				reDraw = true;
 			}catch (GeneralSecurityException | ClassNotFoundException e){
 				footer = ("ERROR: while Sending Message\n");
+				reDraw = true;
 			}
-			if(footer != null){
-				if(footer.equals("==quit")){
-					break;
-				}
+			if(footer.equals("==quit")){
+				break;
 			}
+
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(5);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
 		}
+		RawConsoleInput.resetConsoleMode();
 	}
 
 	private String HandleMessageCommand(String text) {
@@ -254,7 +305,9 @@ public class EnigmaFriend implements Serializable {
 				);
 			}
 			case "info", "i" -> {
-				rtr.append("\t info \n");
+				rtr.append("\t info \n" +
+						"Username:-" + friendsUsername + "\n" +
+						"");
 			}
 			case "quit", "q", "exit" -> {
 				rtr.append("==quit");

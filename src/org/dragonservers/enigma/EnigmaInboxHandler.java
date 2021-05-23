@@ -1,6 +1,7 @@
 package org.dragonservers.enigma;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.security.GeneralSecurityException;
 
 public class EnigmaInboxHandler implements Runnable{
@@ -15,9 +16,11 @@ public class EnigmaInboxHandler implements Runnable{
 			do {
 				try {
 					ep = Enigma.TuringConnection.GetPacket();
-					//TODO handle loss of internet
-
-				} catch (IOException | GeneralSecurityException e) {
+					//TODO handle loss of internet better
+					errors = 0;
+				} catch (ConnectException e){
+					System.out.println("Connection Refused");
+				}catch (IOException | GeneralSecurityException e) {
 					e.printStackTrace();
 					System.out.println("Failed to get Packets");
 					errors++;
@@ -35,6 +38,8 @@ public class EnigmaInboxHandler implements Runnable{
 			while (rtr){
 				try {
 					rtr = EnigmaPacketFactory.HandleOutboundPackets();
+					errors = 0;
+
 				} catch (GeneralSecurityException | IOException e) {
 					e.printStackTrace();
 					System.out.println("Error While Sending Packet");
@@ -48,7 +53,7 @@ public class EnigmaInboxHandler implements Runnable{
 				}
 			}
 			try {
-				Thread.sleep(800);
+				Thread.sleep(500);
 			}catch (InterruptedException ignored){}
 		}
 		if(errors > 5)
