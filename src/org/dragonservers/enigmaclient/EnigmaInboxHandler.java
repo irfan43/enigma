@@ -1,4 +1,6 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
+
+import org.dragonservers.enigma.*;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -15,7 +17,7 @@ public class EnigmaInboxHandler implements Runnable{
 			EnigmaPacket ep = null;
 			do {
 				try {
-					ep = Enigma.TuringConnection.GetPacket();
+					ep = EnigmaClient.TuringConnection.GetPacket();
 					//TODO handle loss of internet better
 					errors = 0;
 				} catch (ConnectException e){

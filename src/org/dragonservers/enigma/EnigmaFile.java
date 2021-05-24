@@ -1,5 +1,9 @@
 package org.dragonservers.enigma;
 
+
+
+import org.dragonservers.enigmaclient.EnigmaClient;
+
 import javax.crypto.BadPaddingException;
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -9,7 +13,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.*;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 
 public class EnigmaFile {
@@ -50,7 +53,7 @@ public class EnigmaFile {
     }
     // Reading and Writing to KeyPair
     //Reading
-    public static KeyPair ReadKeyPair(Path pathToFile,byte[] key) throws IOException, GeneralSecurityException {
+    public static KeyPair ReadKeyPair(Path pathToFile,byte[] key,String Verification) throws IOException, GeneralSecurityException {
         //todo simplify this with encrypted read write functions
 
         BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(pathToFile));
@@ -65,7 +68,7 @@ public class EnigmaFile {
         byte[] checkBlock = new byte[48];
         readBytes(bis,checkBlock);
         try{
-            byte[] calCheck = getVerificationBlock(Enigma.Username);
+            byte[] calCheck = getVerificationBlock(Verification);
             byte[] Decrypted = EnigmaCrypto.AESDecrypt(checkBlock,key);
             if(!Arrays.equals(calCheck,
                     Decrypted)) {
@@ -90,7 +93,7 @@ public class EnigmaFile {
     }
     //Writing
     //Master Function
-    public static void SaveKeyPair(Path PathToSave,KeyPair keyPair,boolean OverWrite, byte[] key)
+    public static void SaveKeyPair(Path PathToSave,KeyPair keyPair,boolean OverWrite, byte[] key,String Verification)
             throws IOException, GeneralSecurityException {
         MessageDigest md = MessageDigest.getInstance("SHA-256");
         if(Files.exists(PathToSave) && !OverWrite)
@@ -106,7 +109,7 @@ public class EnigmaFile {
         BufferedOutputStream bos = new BufferedOutputStream(Files.newOutputStream(PathToSave));
 
         bos.write(KeyPairSignature);
-        byte[] checkBlock = EnigmaCrypto.AESEncrypt( getVerificationBlock(Enigma.Username), key);
+        byte[] checkBlock = EnigmaCrypto.AESEncrypt( getVerificationBlock(Verification), key);
         assert checkBlock.length == 48;
         bos.write( checkBlock);
         //end of header
@@ -119,7 +122,7 @@ public class EnigmaFile {
 
 
     //Single Public Key
-    public static PublicKey readPublicKey(Path file) throws GeneralSecurityException, IOException {
+    public static PublicKey readSignedPublicKey(Path file, PublicKey publicKey) throws GeneralSecurityException, IOException {
         Files.createDirectories(file.getParent());
         BufferedInputStream bis = new BufferedInputStream(Files.newInputStream(file));
 
@@ -132,7 +135,7 @@ public class EnigmaFile {
         PublicKey pbk = EnigmaKeyHandler.PublicKeyFromEnc(pbkEnc);
 
         Signature sgn = Signature.getInstance("SHA256withRSA");
-        sgn.initVerify(Enigma.OurKeyHandler.GetPublicKey());
+        sgn.initVerify(publicKey);
         sgn.update(pbkEnc);
 
         if( !sgn.verify(readBlock(bis)) )
@@ -141,7 +144,7 @@ public class EnigmaFile {
         return pbk;
 
     }
-    public static void savePublicKey(Path file,PublicKey pbk,boolean Overwrite)
+    public static void saveSignedPublicKey(Path file, PublicKey pbk, boolean Overwrite,  PrivateKey privateKey)
             throws GeneralSecurityException, IOException {
         if(!Overwrite && Files.exists(file))
             throw new IOException("File Already Exists");
@@ -153,7 +156,7 @@ public class EnigmaFile {
         writeBlock(bos,pbkEnc);
 
         Signature sgn = Signature.getInstance("SHA256withRSA");
-        sgn.initSign( Enigma.OurKeyHandler.GetPrivateKey() );
+        sgn.initSign(privateKey );
         sgn.update(pbkEnc);
         writeBlock(bos,sgn.sign());
         bos.close();
@@ -228,7 +231,7 @@ public class EnigmaFile {
         //Functions for handling Config Files
     public static String GrabConfig() {
 
-        File configFile = new File(Enigma.ConfigFileName);
+        File configFile = new File(EnigmaClient.ConfigFileName);
 
         if(!configFile.exists())
             return "DNE";
@@ -245,7 +248,7 @@ public class EnigmaFile {
 
         try {
             //TODO improve this algo
-            List<String> lines = Files.readAllLines(Paths.get(Enigma.ConfigFileName));
+            List<String> lines = Files.readAllLines(Paths.get(EnigmaClient.ConfigFileName));
             for (String line:lines) {
                 if(line.startsWith("#"))
                     continue;
@@ -268,12 +271,12 @@ public class EnigmaFile {
         if(!AnsPresent[0])
             return "CF";
         else
-            Enigma.Username = Ans[0];
+            EnigmaClient.Username = Ans[0];
 
         if(AnsPresent[1])
-            Enigma.Registered = Ans[1].equalsIgnoreCase("true");
+            EnigmaClient.Registered = Ans[1].equalsIgnoreCase("true");
         if(AnsPresent[2])
-            Enigma.KeypairGenerated = Ans[2].equalsIgnoreCase("true");
+            EnigmaClient.KeypairGenerated = Ans[2].equalsIgnoreCase("true");
 
         return "OK";
     }
@@ -289,7 +292,7 @@ public class EnigmaFile {
         return line.substring(sepLoc + 1); //Magic:Check gives 5
     }
     public static String PushConfig(){
-        File config = new File(Enigma.ConfigFileName);
+        File config = new File(EnigmaClient.ConfigFileName);
 
         if(!config.exists()){
             try {
@@ -307,14 +310,14 @@ public class EnigmaFile {
             return "NWP"; //No Write Privilege
         String[] Ans = new String[configFileValues.length];
 
-        Ans[0] = Enigma.Username;
-        Ans[1] = (Enigma.Registered) ? "true" : "false";
-        Ans[2] = (Enigma.KeypairGenerated) ? "true" : "false";
+        Ans[0] = EnigmaClient.Username;
+        Ans[1] = (EnigmaClient.Registered) ? "true" : "false";
+        Ans[2] = (EnigmaClient.KeypairGenerated) ? "true" : "false";
 
         try {
             FileWriter fw = new FileWriter(config);
             BufferedWriter bw = new BufferedWriter(fw);
-            bw.write( "#" + "Enigma Version " + Enigma.EnigmaVersion + "\n");
+            bw.write( "#" + "Enigma Version " + EnigmaClient.EnigmaVersion + "\n");
             bw.write("# NOT INTENDED FOR USER EDITING, TO Change Settings Go Through Software Interface" + "\n");
             bw.write("# Updated on " + EnigmaTime.GetFormattedTime() + "\n");
             for (int i = 0; i < configFileValues.length; i++) {

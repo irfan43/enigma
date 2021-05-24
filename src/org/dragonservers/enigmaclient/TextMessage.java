@@ -1,10 +1,12 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
+
+import org.dragonservers.enigma.*;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
+
 
 public class TextMessage implements Serializable {
 

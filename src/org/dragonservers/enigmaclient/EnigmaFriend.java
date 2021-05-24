@@ -1,4 +1,6 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
+
+import org.dragonservers.enigma.*;
 
 import javax.crypto.*;
 import java.io.*;
@@ -40,14 +42,14 @@ public class EnigmaFriend implements Serializable {
 
 		EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
 		enh.SetValue("My_RSA_PublicKey",
-				Base64.getEncoder().encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()));
+				Base64.getEncoder().encodeToString(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()));
 		enh.SetValue("UR_RSA_PublicKey",
 				Base64.getEncoder().encodeToString(friendsPublicKey.getEncoded()));
 		enh.SetValue("DH_PublicKey",
 				Base64.getEncoder().encodeToString(DHKeyPair.getPublic().getEncoded()));
 		Signature sgn = Signature.getInstance("SHA256withRSA");
-		sgn.initSign(Enigma.OurKeyHandler.GetPrivateKey());
-		sgn.update(Enigma.OurKeyHandler.GetPublicKey().getEncoded());
+		sgn.initSign(EnigmaClient.OurKeyHandler.GetPrivateKey());
+		sgn.update(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded());
 		sgn.update(friendsPublicKey.getEncoded());
 		sgn.update(DHKeyPair.getPublic().getEncoded());
 		enh.SetValue("Sign",
@@ -72,7 +74,7 @@ public class EnigmaFriend implements Serializable {
 				.getDecoder().decode(
 						token.GetValue("Sign"));
 		if(!Arrays.equals(OurReportedPublic,
-				Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
+				EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()))
 			throw new IllegalArgumentException("Report BAD RSA our Public Key in introduction token ");
 		if(!Arrays.equals(TherePublicKey,
 				friendsPublicKey.getEncoded()))
@@ -81,7 +83,7 @@ public class EnigmaFriend implements Serializable {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
 		sgn.initVerify(friendsPublicKey);
 		sgn.update(friendsPublicKey.getEncoded());
-		sgn.update(Enigma.OurKeyHandler.GetPublicKey().getEncoded());
+		sgn.update(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded());
 		sgn.update(ThereDHPublicKey);
 		if(!sgn.verify(signature))
 			throw new IllegalArgumentException("Bad Signature on introduction token");
@@ -125,13 +127,13 @@ public class EnigmaFriend implements Serializable {
 	}
 	public EnigmaPacket sendMessage(String data) throws GeneralSecurityException, IOException, ClassNotFoundException {
 		loadIfNotLoaded();
-		EnigmaPacket ep = new EnigmaPacket(Enigma.OurKeyHandler.GetPublicKey(),friendsPublicKey);
+		EnigmaPacket ep = new EnigmaPacket(EnigmaClient.OurKeyHandler.GetPublicKey(),friendsPublicKey);
 		byte[] Cmdheader = "Text".getBytes(StandardCharsets.UTF_8);
 		ByteBuffer bb = ByteBuffer.allocate(4).putInt(Cmdheader.length);
 		ep.update(bb.array());
 		ep.update(Cmdheader);
 		byte[] TMEncoded = EnigmaCrypto.AESEncrypt(
-				enigmaMessages.SendMessage(data,Enigma.OurKeyHandler.GetPrivateKey()),sharedSecret );
+				enigmaMessages.SendMessage(data, EnigmaClient.OurKeyHandler.GetPrivateKey()),sharedSecret );
 		ByteBuffer bbtm = ByteBuffer.allocate(4).putInt(TMEncoded.length);
 		ep.update(bbtm.array());
 		ep.update(TMEncoded);
@@ -145,7 +147,7 @@ public class EnigmaFriend implements Serializable {
 			InputStream is = Files.newInputStream(Path.of("friends",friendFile));
 			final Cipher c = Cipher.getInstance("AES");
 
-			c.init(Cipher.DECRYPT_MODE,Enigma.AESEncryptionKey);
+			c.init(Cipher.DECRYPT_MODE, EnigmaClient.AESEncryptionKey);
 			CipherInputStream cipherInputStream = new CipherInputStream(is,c);
 
 			ObjectInputStream objectInputStream = new ObjectInputStream(cipherInputStream);
@@ -161,7 +163,7 @@ public class EnigmaFriend implements Serializable {
 		OutputStream os = Files.newOutputStream(Path.of("friends",friendFile));
 		final Cipher c = Cipher.getInstance("AES");
 
-		c.init(Cipher.ENCRYPT_MODE,Enigma.AESEncryptionKey);
+		c.init(Cipher.ENCRYPT_MODE, EnigmaClient.AESEncryptionKey);
 		CipherOutputStream cipherOutputStream = new CipherOutputStream(os,c);
 
 		ObjectOutputStream objectOutputStream = new ObjectOutputStream(cipherOutputStream);
@@ -215,7 +217,7 @@ public class EnigmaFriend implements Serializable {
 				System.out.print(ren);
 
 				System.out.print(footer);
-				System.out.print( Enigma.Username + ":" + inputBuffer);
+				System.out.print( EnigmaClient.Username + ":" + inputBuffer);
 				reDraw = false;
 			}
 			try {

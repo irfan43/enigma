@@ -1,4 +1,6 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
+
+import org.dragonservers.enigma.*;
 
 import javax.crypto.*;
 import javax.security.auth.login.CredentialException;
@@ -74,11 +76,11 @@ public class EnigmaServerConnection {
                 EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
                 enh.SetValue("PublicKey", Base64
                         .getEncoder()
-                        .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()));
+                        .encodeToString(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()));
 
                 String headerUTC = "" + EnigmaTime.GetUnixTime();
                 enh.SetValue("password", Base64.getEncoder().encodeToString(
-                        EnigmaUser.HashPasswordVerification(Enigma.LoginPassword, headerUTC)));
+                        EnigmaUser.HashPasswordVerification(EnigmaClient.LoginPassword, headerUTC)));
                 enh.SetValue("headerUTC", headerUTC);
                 String header = enh.GetHeader(true);
                 Socket sock = new Socket(ServerIP, ServerPort);
@@ -112,7 +114,7 @@ public class EnigmaServerConnection {
 
         enh.SetValue("SessionID", enigmaSession.SessionID );
         enh.SetValue("PublicKey", Base64.getEncoder()
-                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+                .encodeToString(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()) );
         enh.SetValue("Search-PublicKey",Base64
                 .getEncoder().encodeToString(publicKey.getEncoded()));
         String header = enh.GetHeader(true);
@@ -153,7 +155,7 @@ public class EnigmaServerConnection {
 
         enh.SetValue("SessionID", enigmaSession.SessionID );
         enh.SetValue("PublicKey", Base64.getEncoder()
-                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+                .encodeToString(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()) );
         enh.SetValue("Search-Username",username);
         String header = enh.GetHeader(true);
 
@@ -193,7 +195,7 @@ public class EnigmaServerConnection {
 
         enh.SetValue("SessionID", enigmaSession.SessionID );
         enh.SetValue("PublicKey", Base64.getEncoder()
-                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+                .encodeToString(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()) );
         String header = enh.GetHeader(true);
 
         Socket sock = new Socket(ServerIP,ServerPort);
@@ -233,7 +235,7 @@ public class EnigmaServerConnection {
 
         enh.SetValue("SessionID", enigmaSession.SessionID );
         enh.SetValue("PublicKey", Base64.getEncoder()
-                .encodeToString(Enigma.OurKeyHandler.GetPublicKey().getEncoded()) );
+                .encodeToString(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()) );
         String header = enh.GetHeader(true);
 
         Socket sock = new Socket(ServerIP,ServerPort);
@@ -251,7 +253,7 @@ public class EnigmaServerConnection {
         //  maybe send the servers utc time
         WriteEncryptedLine(dos, SendPacketCommand,sharedSecret);
         WriteEncryptedLine(dos, header, sharedSecret);
-        WriteEncryptedBlock(dos,ep.GetBinary(Enigma.OurKeyHandler.GetPrivateKey()),sharedSecret);
+        WriteEncryptedBlock(dos,ep.GetBinary(EnigmaClient.OurKeyHandler.GetPrivateKey()),sharedSecret);
         String resp = ReadEncryptedLine(dis,sharedSecret);
         if(!resp.contains("GOOD"))
             System.out.println("Failed to Send Packet :- " + resp);
@@ -260,7 +262,7 @@ public class EnigmaServerConnection {
             throws IOException, GeneralSecurityException {
         EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
         enh.SetValue("registration-code",registrationCode);
-        enh.SetValue("username", Enigma.Username);
+        enh.SetValue("username", EnigmaClient.Username);
         enh.SetValue("password",  Base64.getEncoder().encodeToString(passwordHash) );
         enh.SetValue("public-key", Base64.getEncoder().encodeToString(enigmaKeyHandler.GetPublicKey().getEncoded()) );
         String header = enh.GetHeader(true);
@@ -290,7 +292,7 @@ public class EnigmaServerConnection {
         System.out.println("Registered");
     }
     private void SendVersion(DataOutputStream dos,DataInputStream dis) throws IOException {
-        WriteBlockLine( "enigma \\ " + Enigma.EnigmaVersion , dos);
+        WriteBlockLine( "enigma \\ " + EnigmaClient.EnigmaVersion , dos);
         String resp = ReadBlockLine(dis);
         if(resp.contains("BAD"))
             throw new IOException("Got Bad Response from server, Message:-"  +ReadBlockLine(dis));
@@ -314,7 +316,7 @@ public class EnigmaServerConnection {
         PublicKey serverPdk = kf.generatePublic(new X509EncodedKeySpec(serverDHPubKey));
 
         Signature sgn = Signature.getInstance("SHA256withRSA");
-        sgn.initVerify(Enigma.ServerPublicKey);
+        sgn.initVerify(EnigmaClient.ServerPublicKey);
         sgn.update(serverDHPubKey);
 
         if(!sgn.verify(pbkSgn)){

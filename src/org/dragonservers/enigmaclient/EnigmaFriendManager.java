@@ -1,4 +1,9 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
+
+import org.dragonservers.enigma.EnigmaCrypto;
+import org.dragonservers.enigma.EnigmaKeyHandler;
+import org.dragonservers.enigma.EnigmaNetworkHeader;
+import org.dragonservers.enigma.EnigmaPacket;
 
 import javax.crypto.*;
 import java.io.*;
@@ -35,7 +40,7 @@ public class EnigmaFriendManager {
 		return enigmaFriendList;
 	}
 	public static String GetIntroductionToken(String friendsUsername) throws GeneralSecurityException, IOException {
-		PublicKey friendsPublicKey = Enigma.TuringConnection.GetUserPublicKey(friendsUsername);
+		PublicKey friendsPublicKey = EnigmaClient.TuringConnection.GetUserPublicKey(friendsUsername);
 		return GetIntroductionToken(friendsUsername,friendsPublicKey);
 	}
 	public static String GetIntroductionToken(String friendsUsername,PublicKey friendsPublicKey) throws GeneralSecurityException, IOException {
@@ -59,7 +64,7 @@ public class EnigmaFriendManager {
 		String Public_Key = tkn.GetValue("My_RSA_PublicKey");
 		PublicKey friendsPublicKey;
 		try{
-			 friendsPublicKey =EnigmaKeyHandler.PublicKeyFromEnc(
+			 friendsPublicKey = EnigmaKeyHandler.PublicKeyFromEnc(
 			 		Base64.getDecoder().decode(Public_Key));
 		}catch (Exception e){
 			throw new IllegalArgumentException("Bad Introduction Token");
@@ -67,7 +72,7 @@ public class EnigmaFriendManager {
 		String username = GetUsernameFromPublicKey(Public_Key);
 		if(username == null){
 			//new request
-			username = Enigma.TuringConnection.GetUsername(friendsPublicKey);
+			username = EnigmaClient.TuringConnection.GetUsername(friendsPublicKey);
 			if(username == null)
 				throw new IllegalArgumentException("Illegal Username");
 			EnigmaFriend ef;
@@ -92,7 +97,7 @@ public class EnigmaFriendManager {
 	//IO Functions
 	public static void Save() throws GeneralSecurityException, IOException {
 		final Cipher c = Cipher.getInstance("AES");
-		c.init(Cipher.ENCRYPT_MODE,Enigma.AESEncryptionKey);
+		c.init(Cipher.ENCRYPT_MODE, EnigmaClient.AESEncryptionKey);
 
 		OutputStream os = Files.newOutputStream(save_file);
 		CipherOutputStream cos = new CipherOutputStream(os,c);
@@ -118,7 +123,7 @@ public class EnigmaFriendManager {
 			throw new IOException("FILE Friend List NOT FOUND ");
 
 		final Cipher c = Cipher.getInstance("AES");
-		c.init(Cipher.DECRYPT_MODE, Enigma.AESEncryptionKey);
+		c.init(Cipher.DECRYPT_MODE, EnigmaClient.AESEncryptionKey);
 
 		InputStream is = Files.newInputStream(save_file);
 		CipherInputStream cis = new CipherInputStream(is, c);
@@ -140,7 +145,7 @@ public class EnigmaFriendManager {
 		Save();
 	}
 
-	public static EnigmaPacket sendMessage(String data,String username)
+	public static EnigmaPacket sendMessage(String data, String username)
 			throws GeneralSecurityException, IOException, ClassNotFoundException {
 		return GetFriendFromUsername(username).sendMessage(data);
 	}

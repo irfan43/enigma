@@ -1,5 +1,7 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
 
+
+import org.dragonservers.enigma.*;
 
 import javax.crypto.KeyGenerator;
 
@@ -12,7 +14,7 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 
-public class Enigma {
+public class EnigmaClient {
     public static Scanner scn = new Scanner(System.in);
 
     // Interface Objects
@@ -25,7 +27,7 @@ public class Enigma {
     public static boolean Registered = false,KeypairGenerated= false;
     public static String Username;
     //These Variables are configuration
-    public final static String ConfigFileName = "Enigma.conf",KeyPairFile = "keys/Keypair.kpr",AlgoKey = "RSA";
+    public final static String ConfigFileName = "Enigma.conf",KeyPairFile = "keys/Keypair.kpr";
     public final static String ServerPublicKeyFile = "keys/Server.pbk";
     public static String ServerDomainName;
     public final static int ServerPort = 21947;
@@ -97,7 +99,7 @@ public class Enigma {
     private static void MakeSecret() {
         try{
             final KeyGenerator kg = KeyGenerator.getInstance("AES");
-            kg.init(new SecureRandom(Enigma.EncryptionPassword));
+            kg.init(new SecureRandom(EnigmaClient.EncryptionPassword));
             //TODO add salt <- NOT JOKE DO NOT REMOVE
             AESEncryptionKey = kg.generateKey();
 
@@ -115,7 +117,8 @@ public class Enigma {
         if(ServerPBKFile.exists()) {
 
             try {
-                PublicKey pbk = EnigmaFile.readPublicKey( ServerPBKFile.toPath());
+                PublicKey pbk = EnigmaFile.readSignedPublicKey(
+                        ServerPBKFile.toPath(),OurKeyHandler.GetPublicKey());
                 if(pbk != null){
                     ServerPublicKey = pbk;
                     PrintDataHash( "Server Public Key", ServerPublicKey.getEncoded());
@@ -170,7 +173,8 @@ public class Enigma {
             System.exit(0);
         }
         ServerPublicKey = ServerPbk;
-        EnigmaFile.savePublicKey( Path.of(ServerPublicKeyFile),ServerPublicKey,true);
+        EnigmaFile.saveSignedPublicKey(
+                Path.of(ServerPublicKeyFile),ServerPublicKey,true,OurKeyHandler.GetPrivateKey());
     }
     private static byte[] VerifyGetPassword() throws NoSuchAlgorithmException {
         char[] hash = new char[0];
@@ -267,7 +271,7 @@ public class Enigma {
             }
             if(fileGood){
                 try {
-                    KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(), EncryptionPassword);
+                    KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(), EncryptionPassword,Username);
                     OurKeyHandler = new EnigmaKeyHandler(kp);
                     PrintDataHash("Public Key", OurKeyHandler.GetPublicKey().getEncoded());
                     PrintDataHash("Private Key", OurKeyHandler.GetPrivateKey().getEncoded());
@@ -374,7 +378,7 @@ public class Enigma {
                 }
             }
             System.out.println("Saving KeyPair...");
-            EnigmaFile.SaveKeyPair(kpFile.toPath(),kp,true, EncryptionPassword);
+            EnigmaFile.SaveKeyPair(kpFile.toPath(),kp,true, EncryptionPassword, Username);
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Ran into IO Error While Saving Key Pair");

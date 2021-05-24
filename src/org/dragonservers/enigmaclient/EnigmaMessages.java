@@ -1,4 +1,6 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
+
+import org.dragonservers.enigma.EnigmaTime;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -26,7 +28,7 @@ public class EnigmaMessages implements Serializable {
 		chat_log = new HashMap<>();
 	}
 	public byte[] SendMessage(String msg, PrivateKey ppk) throws GeneralSecurityException, IOException {
-		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, Enigma.OurKeyHandler.GetPublicKey().getEncoded(),Enigma.OurKeyHandler.GetPrivateKey() );
+		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded(), EnigmaClient.OurKeyHandler.GetPrivateKey() );
 		synchronized (this) {
 			chat_log.put(toSend.send_time, toSend);
 			chat_log_latest.put(toSend.send_time, toSend);
@@ -38,7 +40,7 @@ public class EnigmaMessages implements Serializable {
 		boolean valid;
 		if(!Arrays.equals(recvd.FromAddr,FriendsPublicKey))
 			throw new IllegalArgumentException("MESSAGE BAD FROM ADDRESS");
-		if(!Arrays.equals(recvd.ToAddr, Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
+		if(!Arrays.equals(recvd.ToAddr, EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()))
 			throw new IllegalArgumentException("MESSAGE BAD TO ADDRESS");
 		valid = recvd.verify();
 		if (valid)
@@ -89,8 +91,8 @@ public class EnigmaMessages implements Serializable {
 		if(Arrays.equals(msg.FromAddr,FriendsPublicKey))
 			Username = FUsername;
 		else if(Arrays.equals(msg.FromAddr,
-				Enigma.OurKeyHandler.GetPublicKey().getEncoded()))
-			Username = Enigma.Username;
+				EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()))
+			Username = EnigmaClient.Username;
 
 		return formattedTime + Username + ":" + msg.messageData;
 	}

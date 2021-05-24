@@ -1,5 +1,7 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
 
+
+import org.dragonservers.enigma.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -55,7 +57,7 @@ public class EnigmaPacketFactory{
 		return testingPacket.VerifySignature()
 				&&Arrays.equals(
 				testingPacket.getToAddr().getEncoded(),
-				Enigma.OurKeyHandler.GetPublicKey().getEncoded());
+				EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded());
 	}
 
 	/**<p>
@@ -90,7 +92,7 @@ public class EnigmaPacketFactory{
 		if(enigmaPacket != null){
 			//TODO if failed to send packet redo send
 
-			Enigma.TuringConnection.SendPacket(enigmaPacket);
+			EnigmaClient.TuringConnection.SendPacket(enigmaPacket);
 		}
 		return (enigmaPacket != null);
 	}
@@ -131,7 +133,7 @@ public class EnigmaPacketFactory{
 		QueueToken(token,targetUsername);
 	}
 	private static void QueueToken(String token,String targetUsername){
-		EnigmaPacket ep = new EnigmaPacket(Enigma.OurKeyHandler.GetPublicKey(),
+		EnigmaPacket ep = new EnigmaPacket(EnigmaClient.OurKeyHandler.GetPublicKey(),
 				EnigmaFriendManager.GetPublicKeyFromUsername(targetUsername));
 		try {
 			PushBlockOnPacket(ep,

@@ -1,4 +1,8 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
+
+
+
+import org.dragonservers.enigma.*;
 
 
 import java.io.Console;
@@ -44,7 +48,7 @@ public class EnigmaCLI {
 				System.out.println("\tS - Send a Request");
 
 				System.out.println("\tQ - Quit");
-				String resp = Enigma.scn.nextLine().toLowerCase();
+				String resp = EnigmaClient.scn.nextLine().toLowerCase();
 				if (resp.startsWith("q"))
 					break;
 				if(resp.length() > 0) {
@@ -68,7 +72,7 @@ public class EnigmaCLI {
 			System.out.println("We ran into a unexpected Exception ");
 			e.getMessage();
 			e.printStackTrace();
-			Enigma.scn.nextLine();
+			EnigmaClient.scn.nextLine();
 		}finally {
 			//TODO any Save operation if needed
 			engimaBackgroundProcess.keep_Running = false;
@@ -82,7 +86,7 @@ public class EnigmaCLI {
 		} catch (GeneralSecurityException | IOException e) {
 			System.out.println("Ran INTO error while Saving");
 			e.printStackTrace();
-			Enigma.scn.nextLine();
+			EnigmaClient.scn.nextLine();
 		}
 		CLS();
 		System.out.println("=GOODBYE=");
@@ -91,13 +95,13 @@ public class EnigmaCLI {
 	private static void DisplayOutboundRequest() {
 		CLS();
 		System.out.println("Send a new introduction request? (y/n)");
-		String resp = Enigma.scn.nextLine().toLowerCase();
+		String resp = EnigmaClient.scn.nextLine().toLowerCase();
 		while(resp.startsWith("y")){
 			System.out.println("Enter Username:-");
-			String username = Enigma.scn.nextLine().toLowerCase(Locale.ROOT);
+			String username = EnigmaClient.scn.nextLine().toLowerCase(Locale.ROOT);
 			PublicKey publicKey = null;
 			try {
-				publicKey = Enigma.TuringConnection.GetUserPublicKey(username);
+				publicKey = EnigmaClient.TuringConnection.GetUserPublicKey(username);
 			}catch (Exception e){
 				System.out.println("Error While Trying to get Public Key From the Server");
 				e.getMessage();
@@ -112,7 +116,7 @@ public class EnigmaCLI {
 								.getEncoder()
 								.encodeToString(EnigmaCrypto.SHA256(publicKey.getEncoded())));
 					System.out.println("Continue? (y/n)");
-					String rep = Enigma.scn.nextLine();
+					String rep = EnigmaClient.scn.nextLine();
 					if(rep.toLowerCase(Locale.ROOT).startsWith("y")){
 						EnigmaPacketFactory.SendIntroductionToken(username,publicKey);
 						System.out.println("Sent token to " + username );
@@ -125,7 +129,7 @@ public class EnigmaCLI {
 				}
 			}
 			System.out.println("Send another?(y/n)");
-			resp = Enigma.scn.nextLine().toLowerCase();
+			resp = EnigmaClient.scn.nextLine().toLowerCase();
 		}
 
 	}
@@ -153,7 +157,7 @@ public class EnigmaCLI {
 			String[] requestList = EnigmaFriendManager.GetRequestsList();
 			PrintList(requestList);
 			System.out.println("Q - Quit");
-			String resp = Enigma.scn.nextLine().toLowerCase();
+			String resp = EnigmaClient.scn.nextLine().toLowerCase();
 			if(resp.contains("q"))
 				break;
 			int responseID = -1;
@@ -166,7 +170,7 @@ public class EnigmaCLI {
 				sentUsername = requestList[responseID - 1];
 				System.out.println( "Confirm Send Request to " + sentUsername + "?" );
 				System.out.print( "Type \"SEND\" to confirm:-" );
-				String Confirmation = Enigma.scn.nextLine();
+				String Confirmation = EnigmaClient.scn.nextLine();
 
 				if(Confirmation.equals("SEND")){
 					System.out.println("Responding to Request of " + sentUsername);
@@ -205,7 +209,7 @@ public class EnigmaCLI {
 			System.out.println("Q - Quit");
 			System.out.print(header);
 			System.out.print(":-");
-			String resp = Enigma.scn.nextLine().toLowerCase();
+			String resp = EnigmaClient.scn.nextLine().toLowerCase();
 			if(resp.contains("q"))
 				break;
 			int responseID;
@@ -256,7 +260,7 @@ public class EnigmaCLI {
 
 	private static void LogIn() throws IOException, GeneralSecurityException {
 		System.out.println("Logging in....");
-		Enigma.TuringConnection.LogIn();
+		EnigmaClient.TuringConnection.LogIn();
 		System.out.println("Logged IN");
 
 
@@ -267,7 +271,7 @@ public class EnigmaCLI {
 		if(EnigmaFriendManager.IsFileMissing()){
 			System.out.println("NO Friend List Found");
 			System.out.println("Create New Friend List?(Y/N)");
-			String resp = Enigma.scn.nextLine();
+			String resp = EnigmaClient.scn.nextLine();
 			if(!resp.toLowerCase().startsWith("y")){
 				System.out.println("Please Replace the Friend List File to continue\n");
 				System.exit(0);
@@ -298,7 +302,7 @@ public class EnigmaCLI {
 		if(con != null) {
 			Pass = con.readPassword();
 		}else{
-			String s = Enigma.scn.nextLine();
+			String s = EnigmaClient.scn.nextLine();
 			Pass = s.toCharArray();
 		}
 		return Pass;
