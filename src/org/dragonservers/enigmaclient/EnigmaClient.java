@@ -1,5 +1,11 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigmaclient;
 
+
+import org.dragonservers.enigma.*;
+
+import javax.crypto.KeyGenerator;
+
+import javax.crypto.SecretKey;
 import java.io.*;
 import java.net.ConnectException;
 import java.nio.file.Files;
@@ -8,7 +14,7 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 
-public class Enigma {
+public class EnigmaClient {
     public static Scanner scn = new Scanner(System.in);
 
     // Interface Objects
@@ -17,17 +23,27 @@ public class Enigma {
     public static PublicKey ServerPublicKey;
 
     //State Variables
-    public static byte[] UserPassword,LoginPassword;
+    public static byte[] EncryptionPassword,LoginPassword;
     public static boolean Registered = false,KeypairGenerated= false;
     public static String Username;
     //These Variables are configuration
-    public final static String ConfigFileName = "Enigma.conf",KeyPairFile = "keys/Keypair.kpr",AlgoKey = "RSA";
+    public final static String ConfigFileName = "Enigma.conf",KeyPairFile = "keys/Keypair.kpr";
     public final static String ServerPublicKeyFile = "keys/Server.pbk";
-    public final static String ServerDomainName = "127.0.0.1";
+    public static String ServerDomainName;
     public final static int ServerPort = 21947;
     public final static String EnigmaVersion = "1.00";
-
-    public static void main(String[] args) {
+    public static SecretKey AESEncryptionKey;
+    //TODO handle a quick fresh install
+    public static void main(String[] args) throws IOException {
+//        int resp= -1;
+//        while (resp != 1){
+//            resp = RawConsoleInput.read(false);
+//            if(resp >= 0){
+//                System.out.println("code " +  resp);
+//            }
+//        }
+//        System.exit(-1);
+//        RawConsoleInput.resetConsoleMode();
         System.out.println( "Enigma " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
         //Start of Enigma
 
@@ -35,10 +51,12 @@ public class Enigma {
             //TODO handle any arguments that come up
             System.out.println("Command Line Arguments Not Yet supported ");
         }
+        ServerDomainName = GetServerIP();
         CheckConfigFile();
 
         System.out.println("Enter Encryption Password:-");
-        UserPassword = GetPasswordFromUser();
+        EncryptionPassword = GetPasswordFromUser();
+        MakeSecret();
         CheckKeyPair();
         //We have a config File Password and KeyPair
         TuringConnection = new EnigmaServerConnection(ServerDomainName, ServerPort);
@@ -48,13 +66,59 @@ public class Enigma {
 
     }
 
+    private static String GetServerIP(){
+        String dnm = "";
+        try {
+            if (Files.exists(Path.of("Turing_server_ip.dat"))) {
+                InputStreamReader fr = new
+                        InputStreamReader(Files.newInputStream(Path.of("Turing_server_ip.dat")));
+                BufferedReader br = new BufferedReader(fr);
+               dnm=br.readLine();
+               br.close();
+            } else {
+                System.out.println("No Server Ip Avail");
+                System.out.println("Enter Server IP:-");
+                dnm = scn.nextLine();
+
+                OutputStreamWriter osw = new
+                        OutputStreamWriter(Files.newOutputStream(Path.of("Turing_server_ip.dat")));
+                BufferedWriter bw = new BufferedWriter(osw);
+                bw.write(dnm);
+                bw.newLine();
+                bw.close();
+            }
+        }catch (IOException e){
+            System.out.println("ERROR WHILE READING SERVER IP FILE");
+            e.printStackTrace();
+
+            System.exit(-1);
+        }
+        return dnm;
+    }
+
+    private static void MakeSecret() {
+        try{
+            final KeyGenerator kg = KeyGenerator.getInstance("AES");
+            kg.init(new SecureRandom(EnigmaClient.EncryptionPassword));
+            //TODO add salt <- NOT JOKE DO NOT REMOVE
+            AESEncryptionKey = kg.generateKey();
+
+
+        } catch (NoSuchAlgorithmException e) {
+            System.out.println("ERROR WHILE MAKING KEY");
+            e.printStackTrace();
+            System.exit(-1);
+        }
+    }
+
     private static void CheckRegistration(){
         //TODO clean this garbage code for server public key
         File ServerPBKFile = new File(ServerPublicKeyFile);
         if(ServerPBKFile.exists()) {
 
             try {
-                PublicKey pbk = EnigmaFile.readPublicKey( ServerPBKFile.toPath());
+                PublicKey pbk = EnigmaFile.readSignedPublicKey(
+                        ServerPBKFile.toPath(),OurKeyHandler.GetPublicKey());
                 if(pbk != null){
                     ServerPublicKey = pbk;
                     PrintDataHash( "Server Public Key", ServerPublicKey.getEncoded());
@@ -109,7 +173,8 @@ public class Enigma {
             System.exit(0);
         }
         ServerPublicKey = ServerPbk;
-        EnigmaFile.savePublicKey( Path.of(ServerPublicKeyFile),ServerPublicKey,true);
+        EnigmaFile.saveSignedPublicKey(
+                Path.of(ServerPublicKeyFile),ServerPublicKey,true,OurKeyHandler.GetPrivateKey());
     }
     private static byte[] VerifyGetPassword() throws NoSuchAlgorithmException {
         char[] hash = new char[0];
@@ -128,7 +193,8 @@ public class Enigma {
         return EnigmaCrypto.SHA256(hash);
     }
     private static void RegisterUser() {
-        System.out.println("You are yet to register \nWould you like to start a Registration Request with the server?(yes/no)");
+        System.out.println("You are yet to register \n" +
+                "Would you like to start a Registration Request with the server?(yes/no)");
         String resp = scn.nextLine();
         if(!resp.toLowerCase().startsWith("y")){
             System.out.println("Please Start Again When Want to Register");
@@ -149,7 +215,7 @@ public class Enigma {
         while(redo) {
             redo = false;
             try {
-                System.out.println("Starting Registration Exception");
+                System.out.println("Starting Registration ");
                 TuringConnection.RegisterUser(rgCode, OurKeyHandler, LoginPassword);
             } catch (IOException | GeneralSecurityException e) {
                 System.out.println("Error while communicating with server");
@@ -165,7 +231,9 @@ public class Enigma {
                 EnigmaFile.PushConfig();
             }
         }
-
+        if(!Registered){
+            System.out.println("Exiting..");
+        }
     }
     private static byte[] GetPasswordFromUser() {
         byte[] hash = new byte[0];
@@ -203,7 +271,7 @@ public class Enigma {
             }
             if(fileGood){
                 try {
-                    KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(),UserPassword);
+                    KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(), EncryptionPassword,Username);
                     OurKeyHandler = new EnigmaKeyHandler(kp);
                     PrintDataHash("Public Key", OurKeyHandler.GetPublicKey().getEncoded());
                     PrintDataHash("Private Key", OurKeyHandler.GetPrivateKey().getEncoded());
@@ -244,9 +312,21 @@ public class Enigma {
         }
     }
     private static void PrintBinDataWithSha(byte[] data) throws NoSuchAlgorithmException {
-        System.out.println(Base64.getEncoder().encodeToString(data));
+        System.out.println(SoftWrap(
+                Base64.getEncoder().encodeToString(data),80));
         System.out.println("SHA256:-");
-        System.out.println(Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(data)));
+        System.out.println(
+                Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(data)));
+    }
+    private static String SoftWrap(String input,int wall){
+        StringBuilder sb = new StringBuilder();
+        while (input.length() > wall) {
+            sb.append(input, 0, wall);
+            sb.append("\n");
+            input = input.substring(wall);
+        }
+        sb.append(input);
+        return sb.toString();
     }
     private static void CLIGenKeyPair() throws NoSuchAlgorithmException {
         File kpFile = new File(KeyPairFile);
@@ -288,7 +368,8 @@ public class Enigma {
                     System.out.println("Quiting...");
                     System.exit(0   );
                 }
-                System.out.print("Type \"overwrite\" to Confirm Overwriting the KeyPair File:-\nWARNING THIS WILL DELETE THE OLD KEYPAIR FILE THE KEYS WILL BE LOST ");
+                System.out.print("Type \"overwrite\" to Confirm Overwriting the KeyPair File:-" +
+                        "\nWARNING THIS WILL DELETE THE OLD KEYPAIR FILE THE KEYS WILL BE LOST ");
                 resp = scn.nextLine();
                 if(!resp.equalsIgnoreCase("overwrite")){
                     System.out.println("Not Equal to overwrite");
@@ -297,7 +378,7 @@ public class Enigma {
                 }
             }
             System.out.println("Saving KeyPair...");
-            EnigmaFile.SaveKeyPair(kpFile.toPath(),kp,false,UserPassword);
+            EnigmaFile.SaveKeyPair(kpFile.toPath(),kp,true, EncryptionPassword, Username);
         } catch (IOException e) {
             e.printStackTrace();
             System.out.println("Ran into IO Error While Saving Key Pair");

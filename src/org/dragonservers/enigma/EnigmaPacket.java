@@ -1,12 +1,10 @@
 package org.dragonservers.enigma;
 
-
-import java.io.Serializable;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Arrays;
-import java.util.Random;
+
 
 public class EnigmaPacket implements Serializable {
 	private final  PublicKey FromAddr,ToAddr;
@@ -15,16 +13,14 @@ public class EnigmaPacket implements Serializable {
 	private final boolean signed;
 	public byte[] EncodedBinary;
 	//todo rewrite this
-	public EnigmaPacket(byte[] block) throws IllegalArgumentException, NoSuchAlgorithmException, InvalidKeySpecException {
+	public EnigmaPacket(byte[] block)
+			throws IllegalArgumentException, NoSuchAlgorithmException, InvalidKeySpecException, IOException {
 		EncodedBinary =  block.clone();
-		int blockPos = 0;
-		byte[] FromAddrEnc = GrabBlock(block,blockPos);
-		blockPos += FromAddrEnc.length + 4;
-		byte[] ToAddrEnc = GrabBlock(block,blockPos);
-		blockPos += ToAddrEnc.length;
-		Data = GrabBlock(block,blockPos);
-		blockPos += ToAddrEnc.length;
-		DataSignature = GrabBlock(block,blockPos);
+		ByteArrayInputStream bis = new ByteArrayInputStream(block);
+		byte[] FromAddrEnc = ReadBlock(bis);
+		byte[] ToAddrEnc = ReadBlock(bis);
+		Data = ReadBlock(bis);
+		DataSignature = ReadBlock(bis);
 		signed = true;
 
 		FromAddr = EnigmaKeyHandler.PublicKeyFromEnc(FromAddrEnc);
@@ -36,54 +32,65 @@ public class EnigmaPacket implements Serializable {
 		Data = new byte[0];
 		signed = false;
 	}
-	private byte[] GrabBlock(byte[] block, int blockPos) throws IllegalArgumentException{
-		byte[] lenEnc = Arrays.copyOfRange(block,blockPos, blockPos + 4);
-		int len = ByteBuffer.wrap(lenEnc).getInt();
-		blockPos += 4;
-		if(len < 0 || (len + blockPos) > block.length){
-			throw new IllegalArgumentException("invalid length in block");
-		}
-		return Arrays.copyOfRange(block,blockPos,blockPos + len);
+	private byte[] ReadBlock(InputStream inputStream) throws IllegalArgumentException, IOException {
+		byte[] lenEnc = new byte[4];
+		//TODO throw error if eof
+		inputStream.read(lenEnc);
+		byte[] data = new byte[ByteBuffer
+				.wrap(lenEnc).getInt()];
+		inputStream.read(data);
+		return data;
 	}
-	public void update(byte[] data){
+	private void WriteBlock(OutputStream outputStream,byte[] data) throws IOException {
+		outputStream.write(ByteBuffer
+				.allocate(4).putInt(data.length).array());
+		outputStream.write(data);
+	}
+	public void update(byte[] data) throws IOException {
 		if(signed)
 			throw new IllegalArgumentException("Updating Signed Packet");
-		Data = mergeArray(Data,data);
+		ByteArrayOutputStream tmp = new ByteArrayOutputStream(Data.length + data.length);
+		tmp.write(Data);
+		tmp.write(data);
+		Data = tmp.toByteArray();
 	}
+
 
 	//Get the Binary to send
-	public byte[] GetBinary(PrivateKey ppk) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
+	public byte[] GetBinary(PrivateKey ppk)
+			throws InvalidKeyException, SignatureException, NoSuchAlgorithmException, IOException {
 		if(signed)
 			throw new IllegalArgumentException("Signing Signed Packet");
-		byte[] Header = mergeArray(getBlock(FromAddr.getEncoded()),getBlock(ToAddr.getEncoded()));
+		byte[] FromAddrEnc = FromAddr.getEncoded();
+		byte[] ToAddrEnc = ToAddr.getEncoded();
 		DataSignature = GenerateSignature(ppk);
-		byte[] out =  mergeArray(Header,getBlock(Data));
-		return mergeArray(out, DataSignature);
+		ByteArrayOutputStream baos = new ByteArrayOutputStream(
+				FromAddrEnc.length + 4 +
+					ToAddrEnc.length + 4 +
+					Data.length + 4 +
+					DataSignature.length + 4
+		);
+		WriteBlock(baos,FromAddrEnc);
+		WriteBlock(baos,ToAddrEnc);
+		WriteBlock(baos,Data);
+		WriteBlock(baos,DataSignature);
+		return baos.toByteArray();
 	}
-
-	private byte[] GenerateSignature(PrivateKey ppk) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
+	private byte[] GenerateSignature(PrivateKey ppk)
+			throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
 		sgn.initSign(ppk);
 		sgn.update(ToAddr.getEncoded());
 		sgn.update(Data);
 		return sgn.sign();
 	}
-	public boolean VerifySignature() throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
+	public boolean VerifySignature()
+			throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
 		sgn.initVerify( FromAddr );
 		sgn.update(ToAddr.getEncoded());
 		sgn.update(Data);
 		return sgn.verify(DataSignature);
-	}
-	private byte[] getBlock(byte[] data){
-		byte[] IntEnc = ByteBuffer.allocate(4).putInt(data.length).array();
-		return mergeArray(IntEnc,data);
-	}
-	private byte[] mergeArray(byte[] a, byte[] b ){
-		byte[] Array = new byte[a.length + b.length];
-		System.arraycopy(a,0,Array,0,a.length);
-		System.arraycopy(b,0,Array,a.length,b.length);
-		return Array;
 	}
 	public byte[] GetSignature(){
 		return DataSignature;
