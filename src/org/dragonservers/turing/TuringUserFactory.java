@@ -13,15 +13,16 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Set;
 
-public class EnigmaUserFactory {
+public class TuringUserFactory {
 
-	private HashMap<String, EnigmaUser> PublicKeyMap;
+	private HashMap<String, TuringUser> PublicKeyMap;
 	private HashMap<String,String> UsernameMap;
 	private final Object lockObject = new Object();
 
 	public boolean IO_Flag = false;
 
-	public EnigmaUserFactory() throws IOException, ClassNotFoundException {
+
+	public TuringUserFactory() throws IOException, ClassNotFoundException {
 		if(!Files.exists(Path.of(Turing.UserDataFolder,Turing.PublicKeyMap))
 				|| !Files.exists(Path.of(Turing.UserDataFolder,Turing.UsernameMap))){
 
@@ -44,7 +45,7 @@ public class EnigmaUserFactory {
 		}
 		return rtr;
 	}
-	public int RegisterUser(String username,byte[] EncodedPublicKey,byte[] passwordHash) throws IOException {
+	public int RegisterUser(String username,PublicKey pbk,byte[] passwordHash) throws IOException {
 		/*
 		*  0 good registered
 		*  -1 invalid username
@@ -55,19 +56,13 @@ public class EnigmaUserFactory {
 		* */
 		if(!EnigmaUser.IsValidUsername(username))return -1;
 		if(UsernameExist(username))return -2;
-		if(PublicKeyExist(EncodedPublicKey))return -3;
+		if(PublicKeyExist(pbk.getEncoded()))return -3;
 
-		PublicKey pbk;
-		try {
-			pbk = EnigmaKeyHandler.PublicKeyFromEnc(EncodedPublicKey);
-		} catch (NoSuchAlgorithmException e) {
-			return -5;
-		} catch (InvalidKeySpecException e) {
-			return -4;
-		}
+		;
+
 		//validated that the parameters are valid
 		EnigmaUser toAdd = new EnigmaUser(username, pbk, passwordHash);
-		Turing.EnigmaInboxs.MakeInbox(EncodedPublicKey);
+		Turing.EnigmaInboxs.MakeInbox(pbk.getEncoded());
 		AddUser(toAdd);
 		return 0;
 	}
@@ -124,7 +119,7 @@ public class EnigmaUserFactory {
 		String euUsername = eu.getUsername();
 		String publicKey = Base64.getEncoder().encodeToString( eu.PubKey.getEncoded() );
 		synchronized (lockObject) {
-			PublicKeyMap.put(publicKey, eu);
+			PublicKeyMap.put(publicKey, (TuringUser) eu);
 			UsernameMap.put(euUsername, publicKey);
 			IO_Flag = true;
 		}
@@ -132,16 +127,16 @@ public class EnigmaUserFactory {
 
 	private void LoadData() throws IOException, ClassNotFoundException {
 		synchronized (lockObject) {
-			PublicKeyMap = (HashMap<String, EnigmaUser>) LoadUserMap(Turing.UserDataFolder + "/" + Turing.PublicKeyMap);
+			PublicKeyMap = (HashMap<String, TuringUser>) LoadUserMap(Turing.UserDataFolder + "/" + Turing.PublicKeyMap);
 			UsernameMap = (HashMap<String, String>) LoadUserMap(Turing.UserDataFolder + "/" + Turing.UsernameMap);
 		}
 	}
 	public void SaveData() throws IOException {
 
-		HashMap<String, EnigmaUser> pbkMapCopy;
+		HashMap<String, TuringUser> pbkMapCopy;
 		HashMap<String, String> usrMapCopy;
 		synchronized (lockObject) {
-			pbkMapCopy = (HashMap<String, EnigmaUser>) PublicKeyMap.clone();
+			pbkMapCopy = (HashMap<String, TuringUser>) PublicKeyMap.clone();
 			usrMapCopy = (HashMap<String, String>) UsernameMap.clone();
 			IO_Flag = false;
 		}

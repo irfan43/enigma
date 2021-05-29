@@ -51,23 +51,7 @@ public class EnigmaUser implements Serializable {
         Username = username;
     }
 
-    private byte[] BinFromHex(String Hex){
-        if(Hex.length()%2 == 1)
-            Hex = "0" + Hex;
-        ByteBuffer bb = ByteBuffer.allocate(Hex.length()/2);
-        for (int i = 0; i < Hex.length(); i+=2) {
-            byte part = (byte) Integer.parseInt( Hex.substring(i,i+2), 16);
-            bb.put(part);
-        }
 
-        return bb.array();
-    }
-    private String HexFromBin(byte[] bin){
-        StringBuilder sb = new StringBuilder();
-        for(byte part: bin)
-            sb.append(String.format("%02X",part));
-        return sb.toString();
-    }
     public static boolean IsValidUsername(String username){
         username = username.toUpperCase();
         String acceptableUsernameChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-";

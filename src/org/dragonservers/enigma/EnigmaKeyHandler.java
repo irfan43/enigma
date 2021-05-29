@@ -28,7 +28,12 @@ public class EnigmaKeyHandler {
                     EnigmaCrypto.SHA256(Password),Verification);
         }
     }
-
+    public byte[] Sign(byte[] data) throws GeneralSecurityException {
+        Signature sgn = Signature.getInstance("SHA256withRSA");
+        sgn.initSign(keyPair.getPrivate());
+        sgn.update(data);
+        return sgn.sign();
+    }
     public PublicKey GetPublicKey(){
         return keyPair.getPublic();
     }

@@ -41,13 +41,13 @@ public class TextMessage implements Serializable {
 	}
 	public TextMessage(byte[] EncodedBinary) throws IOException {
 		ByteArrayInputStream bis = new ByteArrayInputStream(EncodedBinary);
-		ToAddr = ReadBlock(bis);
-		FromAddr= ReadBlock(bis);
-		messageData = new String( ReadBlock(bis), StandardCharsets.UTF_8 );
+		ToAddr = EnigmaBlock.ReadBlock(bis);
+		FromAddr= EnigmaBlock.ReadBlock(bis);
+		messageData = new String( EnigmaBlock.ReadBlock(bis), StandardCharsets.UTF_8 );
 
-		byte[] timeEnc = ReadBlock(bis);
+		byte[] timeEnc = EnigmaBlock.ReadBlock(bis);
 		send_time = ByteBuffer.wrap(timeEnc).getLong();
-		sign = ReadBlock(bis);
+		sign = EnigmaBlock.ReadBlock(bis);
 	}
 
 
@@ -67,7 +67,7 @@ public class TextMessage implements Serializable {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream(
 				signedData.length + getBlockLength(sign));
 		bos.write(signedData);
-		WriteBlock(bos,sign);
+		EnigmaBlock.WriteBlock(bos,sign);
 		return bos.toByteArray();
 	}
 	private void SignData(PrivateKey privateKey) throws GeneralSecurityException, IOException {
@@ -87,26 +87,14 @@ public class TextMessage implements Serializable {
 				+ getBlockLength(sendTimeEnc)
 				);
 
-		WriteBlock(baos,ToAddr);
-		WriteBlock(baos,FromAddr);
-		WriteBlock(baos,messageData.getBytes(StandardCharsets.UTF_8));
-		WriteBlock(baos,sendTimeEnc);
+		EnigmaBlock.WriteBlock(baos,ToAddr);
+		EnigmaBlock.WriteBlock(baos,FromAddr);
+		EnigmaBlock.WriteBlock(baos,messageData.getBytes(StandardCharsets.UTF_8));
+		EnigmaBlock.WriteBlock(baos,sendTimeEnc);
 		return baos.toByteArray();
 	}
 	private int getBlockLength(byte[] data){
 		return data.length + 4;
 	}
-	private byte[] ReadBlock(InputStream inputStream) throws IOException {
-		byte[] lenEnc = new byte[4];
-		inputStream.read(lenEnc);
-		int len = ByteBuffer.wrap(lenEnc).getInt();
 
-		byte[] data = new byte[len];
-		inputStream.read(data);
-		return data;
-	}
-	private void WriteBlock(OutputStream outputStream, byte data[]) throws IOException {
-		outputStream.write( ByteBuffer.allocate(4).putInt(data.length).array() );
-		outputStream.write(data);
-	}
 }
