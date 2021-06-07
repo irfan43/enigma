@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 
 import org.dragonservers.enigma.*;
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class EnigmaPacketFactory{
+public class AetherPacketFactory {
 
 	private static final List<EnigmaPacket> InboundQueue = new ArrayList<>();
 	private static final List<EnigmaPacket> OutboundQueue = new ArrayList<>();
@@ -57,7 +57,7 @@ public class EnigmaPacketFactory{
 		return testingPacket.VerifySignature()
 				&&Arrays.equals(
 				testingPacket.getToAddr().getEncoded(),
-				EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded());
+				Aether.OurKeyHandler.GetPublicKey().getEncoded());
 	}
 
 	/**<p>
@@ -92,7 +92,7 @@ public class EnigmaPacketFactory{
 		if(enigmaPacket != null){
 			//TODO if failed to send packet redo send
 
-			EnigmaClient.TuringConnection.SendPacket(enigmaPacket);
+			Aether.TuringConnection.SendPacket(enigmaPacket);
 		}
 		return (enigmaPacket != null);
 	}
@@ -110,11 +110,11 @@ public class EnigmaPacketFactory{
 		byte[] block = ReadBlock(bis);
 		switch (Command){
 			case "Text" -> {
-				EnigmaFriendManager. receivedMessage(block,enigmaPacket.getFromAddr().getEncoded());
+				AetherFriendManager. receivedMessage(block,enigmaPacket.getFromAddr().getEncoded());
 			}
 			case "START_KEY_X" -> {
 
-				EnigmaFriendManager.HandleNewIntroductionToken(
+				AetherFriendManager.HandleNewIntroductionToken(
 						new String(block));
 			}
 			default -> {
@@ -124,17 +124,17 @@ public class EnigmaPacketFactory{
 	}
 	public static void SendIntroductionToken(String targetUsername, PublicKey friendsPublicKey)
 			throws GeneralSecurityException, IOException {
-		String token  = EnigmaFriendManager.GetIntroductionToken(targetUsername,friendsPublicKey);
+		String token  = AetherFriendManager.GetIntroductionToken(targetUsername,friendsPublicKey);
 		QueueToken(token,targetUsername);
 	}
 	public static void SendIntroductionToken(String targetUsername)
 			throws GeneralSecurityException, IOException {
-		String token = EnigmaFriendManager.GetIntroductionToken(targetUsername);
+		String token = AetherFriendManager.GetIntroductionToken(targetUsername);
 		QueueToken(token,targetUsername);
 	}
 	private static void QueueToken(String token,String targetUsername){
-		EnigmaPacket ep = new EnigmaPacket(EnigmaClient.OurKeyHandler.GetPublicKey(),
-				EnigmaFriendManager.GetPublicKeyFromUsername(targetUsername));
+		EnigmaPacket ep = new EnigmaPacket(Aether.OurKeyHandler.GetPublicKey(),
+				AetherFriendManager.GetPublicKeyFromUsername(targetUsername));
 		try {
 			PushBlockOnPacket(ep,
 					"START_KEY_X".getBytes(StandardCharsets.UTF_8));

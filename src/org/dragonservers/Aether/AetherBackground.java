@@ -1,6 +1,6 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
-public class EngimaBackground implements Runnable{
+public class AetherBackground implements Runnable{
 
 	public  boolean keep_Running = true;
 
@@ -10,7 +10,7 @@ public class EngimaBackground implements Runnable{
 		while (keep_Running){
 
 			//check EnigmaPackets
-			EnigmaPacketFactory.HandleInboundPackets();
+			AetherPacketFactory.HandleInboundPackets();
 			try {
 				Thread.sleep(500);
 			}catch (InterruptedException ignored){}

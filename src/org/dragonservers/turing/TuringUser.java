@@ -3,6 +3,7 @@ package org.dragonservers.turing;
 import org.dragonservers.enigma.EnigmaBlock;
 import org.dragonservers.enigma.EnigmaPacket;
 import org.dragonservers.enigma.EnigmaUser;
+import org.dragonservers.enigma.NetworkProtocol.EnigmaRegistrationRequest;
 
 import java.io.*;
 import java.net.Socket;
@@ -20,6 +21,11 @@ public class TuringUser extends EnigmaUser implements Serializable{
 	public TuringUser(String username, PublicKey pbk, byte[] passwordHash) {
 		super(username, pbk, passwordHash);
 	}
+
+	public TuringUser(EnigmaRegistrationRequest registrationRequest) {
+		super(registrationRequest.uname, registrationRequest.publicKey, registrationRequest.passwordHash);
+	}
+
 	public void ListenPacket(OutputStream outputStream,InputStream inputStream){
 		synchronized (lockObject) {
 			if (!online) {

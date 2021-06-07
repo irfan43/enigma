@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.*;
 
@@ -13,22 +13,22 @@ import java.security.spec.ECGenParameterSpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.*;
 
-public class EnigmaFriend implements Serializable {
+public class AetherFriend implements Serializable {
 	//these are transient for security Reasons
 	public PublicKey friendsPublicKey;
 	private PublicKey FriendsDHPbk;
 	private KeyPair DHKeyPair;
 	private byte[] sharedSecret;
-	public transient EnigmaMessages enigmaMessages;
+	public transient AetherMessages aetherMessages;
 	public String friendsUsername;
 	private boolean GotToken,SentToken,reDraw;
 	public String friendFile;
 
-	public EnigmaFriend(PublicKey publicKey,String username) throws GeneralSecurityException, IOException {
+	public AetherFriend(PublicKey publicKey, String username) throws GeneralSecurityException, IOException {
 
 		friendsPublicKey = publicKey;
 		friendsUsername = username;
-		enigmaMessages = new EnigmaMessages(friendsUsername,friendsPublicKey);
+		aetherMessages = new AetherMessages(friendsUsername,friendsPublicKey);
 		GotToken = false;
 		SentToken = false;
 		initializeFile();
@@ -42,14 +42,14 @@ public class EnigmaFriend implements Serializable {
 
 		EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
 		enh.SetValue("My_RSA_PublicKey",
-				Base64.getEncoder().encodeToString(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()));
+				Base64.getEncoder().encodeToString(Aether.OurKeyHandler.GetPublicKey().getEncoded()));
 		enh.SetValue("UR_RSA_PublicKey",
 				Base64.getEncoder().encodeToString(friendsPublicKey.getEncoded()));
 		enh.SetValue("DH_PublicKey",
 				Base64.getEncoder().encodeToString(DHKeyPair.getPublic().getEncoded()));
 		Signature sgn = Signature.getInstance("SHA256withRSA");
-		sgn.initSign(EnigmaClient.OurKeyHandler.GetPrivateKey());
-		sgn.update(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded());
+		sgn.initSign(Aether.OurKeyHandler.GetPrivateKey());
+		sgn.update(Aether.OurKeyHandler.GetPublicKey().getEncoded());
 		sgn.update(friendsPublicKey.getEncoded());
 		sgn.update(DHKeyPair.getPublic().getEncoded());
 		enh.SetValue("Sign",
@@ -74,7 +74,7 @@ public class EnigmaFriend implements Serializable {
 				.getDecoder().decode(
 						token.GetValue("Sign"));
 		if(!Arrays.equals(OurReportedPublic,
-				EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()))
+				Aether.OurKeyHandler.GetPublicKey().getEncoded()))
 			throw new IllegalArgumentException("Report BAD RSA our Public Key in introduction token ");
 		if(!Arrays.equals(TherePublicKey,
 				friendsPublicKey.getEncoded()))
@@ -83,7 +83,7 @@ public class EnigmaFriend implements Serializable {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
 		sgn.initVerify(friendsPublicKey);
 		sgn.update(friendsPublicKey.getEncoded());
-		sgn.update(EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded());
+		sgn.update(Aether.OurKeyHandler.GetPublicKey().getEncoded());
 		sgn.update(ThereDHPublicKey);
 		if(!sgn.verify(signature))
 			throw new IllegalArgumentException("Bad Signature on introduction token");
@@ -121,19 +121,19 @@ public class EnigmaFriend implements Serializable {
 	public void pushMessage(byte[] data)
 			throws GeneralSecurityException, IOException, ClassNotFoundException, IllegalArgumentException {
 		loadIfNotLoaded();
-		enigmaMessages.PutMessage(EnigmaCrypto.AESDecrypt(data,sharedSecret) );
+		aetherMessages.PutMessage(EnigmaCrypto.AESDecrypt(data,sharedSecret) );
 		saveMessagesToFile();
 		reDraw = true;
 	}
 	public EnigmaPacket sendMessage(String data) throws GeneralSecurityException, IOException, ClassNotFoundException {
 		loadIfNotLoaded();
-		EnigmaPacket ep = new EnigmaPacket(EnigmaClient.OurKeyHandler.GetPublicKey(),friendsPublicKey);
+		EnigmaPacket ep = new EnigmaPacket(Aether.OurKeyHandler.GetPublicKey(),friendsPublicKey);
 		byte[] Cmdheader = "Text".getBytes(StandardCharsets.UTF_8);
 		ByteBuffer bb = ByteBuffer.allocate(4).putInt(Cmdheader.length);
 		ep.update(bb.array());
 		ep.update(Cmdheader);
 		byte[] TMEncoded = EnigmaCrypto.AESEncrypt(
-				enigmaMessages.SendMessage(data, EnigmaClient.OurKeyHandler.GetPrivateKey()),sharedSecret );
+				aetherMessages.SendMessage(data, Aether.OurKeyHandler.GetPrivateKey()),sharedSecret );
 		ByteBuffer bbtm = ByteBuffer.allocate(4).putInt(TMEncoded.length);
 		ep.update(bbtm.array());
 		ep.update(TMEncoded);
@@ -147,11 +147,11 @@ public class EnigmaFriend implements Serializable {
 			InputStream is = Files.newInputStream(Path.of("friends",friendFile));
 			final Cipher c = Cipher.getInstance("AES");
 
-			c.init(Cipher.DECRYPT_MODE, EnigmaClient.AESEncryptionKey);
+			c.init(Cipher.DECRYPT_MODE, Aether.AESEncryptionKey);
 			CipherInputStream cipherInputStream = new CipherInputStream(is,c);
 
 			ObjectInputStream objectInputStream = new ObjectInputStream(cipherInputStream);
-			enigmaMessages = (EnigmaMessages) objectInputStream.readObject();
+			aetherMessages = (AetherMessages) objectInputStream.readObject();
 
 			objectInputStream.close();
 			cipherInputStream.close();
@@ -163,17 +163,17 @@ public class EnigmaFriend implements Serializable {
 		OutputStream os = Files.newOutputStream(Path.of("friends",friendFile));
 		final Cipher c = Cipher.getInstance("AES");
 
-		c.init(Cipher.ENCRYPT_MODE, EnigmaClient.AESEncryptionKey);
+		c.init(Cipher.ENCRYPT_MODE, Aether.AESEncryptionKey);
 		CipherOutputStream cipherOutputStream = new CipherOutputStream(os,c);
 
 		ObjectOutputStream objectOutputStream = new ObjectOutputStream(cipherOutputStream);
-		objectOutputStream.writeObject(enigmaMessages);
+		objectOutputStream.writeObject(aetherMessages);
 		objectOutputStream.close();
 		cipherOutputStream.close();
 		os.close();
 	}
 	private void loadIfNotLoaded() throws GeneralSecurityException, IOException, ClassNotFoundException {
-		if(enigmaMessages == null)
+		if(aetherMessages == null)
 			loadMessagesFromFile();
 	}
 	private void initializeFile() throws GeneralSecurityException, IOException {
@@ -183,7 +183,7 @@ public class EnigmaFriend implements Serializable {
 			friendFile = getRandomString(nchars) + ".msgcrypt";
 			nchars++;
 		}while (Files.exists(Path.of("friends",friendFile)));
-		enigmaMessages = new EnigmaMessages(friendsUsername,friendsPublicKey);
+		aetherMessages = new AetherMessages(friendsUsername,friendsPublicKey);
 		saveMessagesToFile();
 	}
 	private String getRandomString(int nChars){
@@ -207,9 +207,9 @@ public class EnigmaFriend implements Serializable {
 		while (true) {
 			if(reDraw) {
 
-				String ren = enigmaMessages.GetRendered(35);
-				blank_lines_to_Add = lines_msg_rendered - enigmaMessages.LastRenderArray.length;
-				EnigmaCLI.CLS();
+				String ren = aetherMessages.GetRendered(35);
+				blank_lines_to_Add = lines_msg_rendered - aetherMessages.LastRenderArray.length;
+				AetherCLI.CLS();
 				PrintNLines(100 - blank_lines_to_Add);
 				System.out.println("\t== Chat with " + friendsUsername + " ==");
 				PrintNLines( blank_lines_to_Add);
@@ -217,7 +217,7 @@ public class EnigmaFriend implements Serializable {
 				System.out.print(ren);
 
 				System.out.print(footer);
-				System.out.print( EnigmaClient.Username + ":" + inputBuffer);
+				System.out.print( Aether.Username + ":" + inputBuffer);
 				reDraw = false;
 			}
 			try {
@@ -234,13 +234,13 @@ public class EnigmaFriend implements Serializable {
 						System.out.println("Keyboard Interrupt");
 						System.exit(-1);
 					}
-					if((keyCode == 127 && !EnigmaCLI.IsWindows) ||
-							(keyCode == 8 && EnigmaCLI.IsWindows)){
+					if((keyCode == 127 && !AetherCLI.IsWindows) ||
+							(keyCode == 8 && AetherCLI.IsWindows)){
 						reDraw = true;
 						inputBuffer = inputBuffer.substring(0,inputBuffer.length() - 1);
 					}
-					if( (keyCode == 10 && !EnigmaCLI.IsWindows) ||
-							(keyCode == 13 && EnigmaCLI.IsWindows) ) {
+					if( (keyCode == 10 && !AetherCLI.IsWindows) ||
+							(keyCode == 13 && AetherCLI.IsWindows) ) {
 						reDraw = true;
 						//if new line ie enter was sent
 						text = inputBuffer;
@@ -257,9 +257,9 @@ public class EnigmaFriend implements Serializable {
 							footer = "";
 						}
 						if (ep != null)
-							EnigmaPacketFactory.QueueOutgoingPacket(ep);
+							AetherPacketFactory.QueueOutgoingPacket(ep);
 					}
-					if( (!EnigmaCLI.IsWindows) && keyCode == 27){
+					if( (!AetherCLI.IsWindows) && keyCode == 27){
 						List<Integer> buff = new ArrayList<>();
 						do{
 							buff.add(keyCode);

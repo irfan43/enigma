@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.enigma;
 
 public class EnigmaConsoleUtil {
 

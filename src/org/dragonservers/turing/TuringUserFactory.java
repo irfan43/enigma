@@ -2,6 +2,7 @@ package org.dragonservers.turing;
 
 import org.dragonservers.enigma.EnigmaKeyHandler;
 import org.dragonservers.enigma.EnigmaUser;
+import org.dragonservers.enigma.NetworkProtocol.EnigmaRegistrationRequest;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -45,7 +46,7 @@ public class TuringUserFactory {
 		}
 		return rtr;
 	}
-	public int RegisterUser(String username,PublicKey pbk,byte[] passwordHash) throws IOException {
+	public void RegisterUser(EnigmaRegistrationRequest registrationRequest){
 		/*
 		*  0 good registered
 		*  -1 invalid username
@@ -54,17 +55,19 @@ public class TuringUserFactory {
 		*  -4 invalid key spec
 		*  -5 Server Error
 		* */
-		if(!EnigmaUser.IsValidUsername(username))return -1;
-		if(UsernameExist(username))return -2;
-		if(PublicKeyExist(pbk.getEncoded()))return -3;
+		if(!EnigmaUser.IsValidUsername(registrationRequest.uname))
+			throw new TuringConnectionException("bad invalid_username");
+		if(UsernameExist(registrationRequest.uname))
+			throw new TuringConnectionException("bad username_exist");
+		if(PublicKeyExist(registrationRequest.publicKeyEncoded))
+			throw new TuringConnectionException("bad public_key_exist");
 
-		;
 
 		//validated that the parameters are valid
-		EnigmaUser toAdd = new EnigmaUser(username, pbk, passwordHash);
-		Turing.EnigmaInboxs.MakeInbox(pbk.getEncoded());
+		TuringUser toAdd = new TuringUser(registrationRequest);
+		Turing.EnigmaInboxs.MakeInbox(registrationRequest.publicKeyEncoded);
 		AddUser(toAdd);
-		return 0;
+
 	}
 
 	//TODO overload with base 64 input
@@ -115,11 +118,11 @@ public class TuringUserFactory {
 	}
 
 
-	private void AddUser(EnigmaUser eu){
-		String euUsername = eu.getUsername();
-		String publicKey = Base64.getEncoder().encodeToString( eu.PubKey.getEncoded() );
+	private void AddUser(TuringUser turingUser){
+		String euUsername = turingUser.getUsername();
+		String publicKey = Base64.getEncoder().encodeToString( turingUser.PubKey.getEncoded() );
 		synchronized (lockObject) {
-			PublicKeyMap.put(publicKey, (TuringUser) eu);
+			PublicKeyMap.put(publicKey, turingUser);
 			UsernameMap.put(euUsername, publicKey);
 			IO_Flag = true;
 		}

@@ -5,6 +5,7 @@ package org.dragonservers.enigma;
 import java.io.File;
 import java.io.IOException;
 import java.security.*;
+import java.security.spec.ECGenParameterSpec;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
@@ -57,5 +58,14 @@ public class EnigmaKeyHandler {
     }
     public static KeyPair KeyPairFromEnc(byte[] PublicKeyEncoded,byte[] PrivateKeyEncoded) throws InvalidKeySpecException, NoSuchAlgorithmException {
         return new KeyPair( PublicKeyFromEnc(PublicKeyEncoded),PrivateKeyFromEnc(PrivateKeyEncoded) );
+    }
+    public static KeyPair generateECDHKey() throws GeneralSecurityException {
+        KeyPairGenerator kpg =KeyPairGenerator.getInstance("EC");
+
+        //we are using this curve , however later we should move to a better curve
+        //testing shows it works in java 15 so don't touch it
+        //IF YOU CHANGE THIS CHECK WITH ALL VERSION OF JAVA BEFORE PUSHING
+        kpg.initialize(new ECGenParameterSpec("secp256r1"));
+        return kpg.generateKeyPair();
     }
 }

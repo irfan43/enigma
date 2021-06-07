@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.EnigmaCrypto;
 import org.dragonservers.enigma.EnigmaKeyHandler;
@@ -14,10 +14,10 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.*;
 
-public class EnigmaFriendManager {
+public class AetherFriendManager {
 
 	public static int Message_Latest_cache = 100;
-	private static HashMap<String,EnigmaFriend> friendMap;
+	private static HashMap<String, AetherFriend> friendMap;
 	private static HashMap<String,String> friendUsernameMap;
 	private static List<String> New_friends;
 	private static final Object lockObject = new Object();
@@ -30,7 +30,7 @@ public class EnigmaFriendManager {
 		Set<String> keySet = friendMap.keySet();
 		List<String> enigmaFriendList = new ArrayList<>();
 		for (String i :keySet) {
-			EnigmaFriend ef = friendMap.get(i);
+			AetherFriend ef = friendMap.get(i);
 			if(ef != null && ef.IsIntroduced()) {
 				enigmaFriendList.add(ef.friendsUsername);
 				if (enigmaFriendList.size() >= 20)
@@ -40,16 +40,16 @@ public class EnigmaFriendManager {
 		return enigmaFriendList;
 	}
 	public static String GetIntroductionToken(String friendsUsername) throws GeneralSecurityException, IOException {
-		PublicKey friendsPublicKey = EnigmaClient.TuringConnection.GetUserPublicKey(friendsUsername);
+		PublicKey friendsPublicKey = Aether.TuringConnection.GetUserPublicKey(friendsUsername);
 		return GetIntroductionToken(friendsUsername,friendsPublicKey);
 	}
 	public static String GetIntroductionToken(String friendsUsername,PublicKey friendsPublicKey) throws GeneralSecurityException, IOException {
 		if(friendsPublicKey == null)
 			throw new IllegalArgumentException("BAD USERNAME DNE");
-		EnigmaFriend ef  = GetFriendFromPublicKey(friendsPublicKey);
+		AetherFriend ef  = GetFriendFromPublicKey(friendsPublicKey);
 		String token;
 		if(ef == null){
-			ef = new EnigmaFriend(friendsPublicKey,friendsUsername);
+			ef = new AetherFriend(friendsPublicKey,friendsUsername);
 			AddFriend(ef);
 		}
 		token = ef.GetIntroductionToken();
@@ -72,22 +72,22 @@ public class EnigmaFriendManager {
 		String username = GetUsernameFromPublicKey(Public_Key);
 		if(username == null){
 			//new request
-			username = EnigmaClient.TuringConnection.GetUsername(friendsPublicKey);
+			username = Aether.TuringConnection.GetUsername(friendsPublicKey);
 			if(username == null)
 				throw new IllegalArgumentException("Illegal Username");
-			EnigmaFriend ef;
+			AetherFriend ef;
 			//TODO handle a bad token
-			ef = new EnigmaFriend(friendsPublicKey, username);
+			ef = new AetherFriend(friendsPublicKey, username);
 			ef.LoadIntroductionToken(tkn);
 			AddFriend(ef);
 		}else {
 			System.out.println("Got here ");
-			EnigmaFriend ef = GetFriendFromUsername(username);
+			AetherFriend ef = GetFriendFromUsername(username);
 			ef.LoadIntroductionToken(tkn);
 		}
 		Save();
 	}
-	private static void AddFriend(EnigmaFriend friend){
+	private static void AddFriend(AetherFriend friend){
 		friendMap.put(friend.friendsUsername,friend);
 		friendUsernameMap.put(
 				Base64.getEncoder().encodeToString(friend.friendsPublicKey.getEncoded()),
@@ -97,7 +97,7 @@ public class EnigmaFriendManager {
 	//IO Functions
 	public static void Save() throws GeneralSecurityException, IOException {
 		final Cipher c = Cipher.getInstance("AES");
-		c.init(Cipher.ENCRYPT_MODE, EnigmaClient.AESEncryptionKey);
+		c.init(Cipher.ENCRYPT_MODE, Aether.AESEncryptionKey);
 
 		OutputStream os = Files.newOutputStream(save_file);
 		CipherOutputStream cos = new CipherOutputStream(os,c);
@@ -123,13 +123,13 @@ public class EnigmaFriendManager {
 			throw new IOException("FILE Friend List NOT FOUND ");
 
 		final Cipher c = Cipher.getInstance("AES");
-		c.init(Cipher.DECRYPT_MODE, EnigmaClient.AESEncryptionKey);
+		c.init(Cipher.DECRYPT_MODE, Aether.AESEncryptionKey);
 
 		InputStream is = Files.newInputStream(save_file);
 		CipherInputStream cis = new CipherInputStream(is, c);
 		ObjectInputStream ois = new ObjectInputStream(cis);
 		synchronized (lockObject) {
-			friendMap = (HashMap<String, EnigmaFriend>) ois.readObject();
+			friendMap = (HashMap<String, AetherFriend>) ois.readObject();
 			friendUsernameMap = (HashMap<String, String>) ois.readObject();
 			New_friends = (List<String>) ois.readObject();
 
@@ -160,7 +160,7 @@ public class EnigmaFriendManager {
 
 		for (String name :New_friends) {
 			synchronized (lockObject){
-				EnigmaFriend ef = GetFriendFromUsername(name);
+				AetherFriend ef = GetFriendFromUsername(name);
 				if(ef != null && !ef.IsIntroduced())
 					temp.add(name);
 			}
@@ -175,12 +175,12 @@ public class EnigmaFriendManager {
 	public static String RenderName(String username) throws NoSuchAlgorithmException {
 		return RenderName(GetFriendFromUsername(username));
 	}
-	public static String RenderName(EnigmaFriend enigmaFriend) throws NoSuchAlgorithmException {
-		return enigmaFriend.friendsUsername +
+	public static String RenderName(AetherFriend aetherFriend) throws NoSuchAlgorithmException {
+		return aetherFriend.friendsUsername +
 				":" +
 				Base64
 					.getEncoder()
-					.encodeToString(EnigmaCrypto.SHA256(enigmaFriend
+					.encodeToString(EnigmaCrypto.SHA256(aetherFriend
 							.friendsPublicKey.getEncoded()));
 	}
 	/**
@@ -194,24 +194,24 @@ public class EnigmaFriendManager {
 		String username = GetUsernameFromPublicKey(toAddr);
 		if(username == null)
 			throw new IllegalArgumentException("Public Key Does Not Exist in EnigmaFriendManager");
-		EnigmaFriend ef;
+		AetherFriend ef;
 		synchronized (lockObject){
 			ef = friendMap.get(username);
 		}
 		ef.pushMessage(data);
 
 	}
-	public static EnigmaFriend GetFriendFromPublicKey(String publicKey){
+	public static AetherFriend GetFriendFromPublicKey(String publicKey){
 		String username = GetUsernameFromPublicKey(publicKey);
 		return GetFriendFromUsername(username);
 	}
-	private static EnigmaFriend GetFriendFromPublicKey(PublicKey friendsPublicKey) {
+	private static AetherFriend GetFriendFromPublicKey(PublicKey friendsPublicKey) {
 		return GetFriendFromPublicKey(
 				Base64.getEncoder().encodeToString(friendsPublicKey.getEncoded())
 		);
 	}
-	public static EnigmaFriend GetFriendFromUsername(String username){
-		EnigmaFriend ef;
+	public static AetherFriend GetFriendFromUsername(String username){
+		AetherFriend ef;
 		synchronized (lockObject){
 			ef = friendMap.get(username);
 		}
@@ -232,7 +232,7 @@ public class EnigmaFriendManager {
 	}
 
 	public static void OpenMessageWindow(String frusername) throws GeneralSecurityException, IOException, ClassNotFoundException {
-		EnigmaFriend ef = GetFriendFromUsername(frusername);
+		AetherFriend ef = GetFriendFromUsername(frusername);
 		ef.OpenMessageWindow();
 	}
 }

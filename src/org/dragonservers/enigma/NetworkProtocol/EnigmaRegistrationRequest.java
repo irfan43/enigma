@@ -1,4 +1,4 @@
-package org.dragonservers.enigma.NetworkProtocal;
+package org.dragonservers.enigma.NetworkProtocol;
 
 import org.dragonservers.enigma.EnigmaKeyHandler;
 import org.dragonservers.enigma.EnigmaNetworkHeader;
@@ -23,6 +23,14 @@ public class EnigmaRegistrationRequest {
 
 	public byte[] sign;
 	public String signB64;
+
+	public EnigmaRegistrationRequest(){
+	}
+	public EnigmaRegistrationRequest(EnigmaNetworkHeader enigmaNetworkHeader,String randomServer,boolean verify){
+		decodeRequestHeader(enigmaNetworkHeader,randomServer);
+		if(verify)
+			verifySignature();
+	}
 
 	public void buildRequest(byte[] password,
 							 KeyPair keyPair,

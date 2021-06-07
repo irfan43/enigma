@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.*;
 
@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.net.ConnectException;
 import java.security.GeneralSecurityException;
 
-public class EnigmaInboxHandler implements Runnable{
+public class AetherInboxHandler implements Runnable{
 
 	public boolean keep_Running = true;
 
@@ -17,7 +17,7 @@ public class EnigmaInboxHandler implements Runnable{
 			EnigmaPacket ep = null;
 			do {
 				try {
-					ep = EnigmaClient.TuringConnection.GetPacket();
+					ep = Aether.TuringConnection.GetPacket();
 					//TODO handle loss of internet better
 					errors = 0;
 				} catch (ConnectException e){
@@ -34,12 +34,12 @@ public class EnigmaInboxHandler implements Runnable{
 
 				}
 				if(ep != null)
-					EnigmaPacketFactory.QueueIncomingPacket(ep);
+					AetherPacketFactory.QueueIncomingPacket(ep);
 			}while (ep != null);
 			boolean rtr = true;
 			while (rtr){
 				try {
-					rtr = EnigmaPacketFactory.HandleOutboundPackets();
+					rtr = AetherPacketFactory.HandleOutboundPackets();
 					errors = 0;
 
 				} catch (GeneralSecurityException | IOException e) {

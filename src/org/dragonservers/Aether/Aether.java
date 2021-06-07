@@ -1,6 +1,7 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 
+import com.sun.jdi.connect.Connector;
 import org.dragonservers.enigma.*;
 
 import javax.crypto.KeyGenerator;
@@ -14,7 +15,7 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 
-public class EnigmaClient {
+public class Aether {
     public static Scanner scn = new Scanner(System.in);
 
     // Interface Objects
@@ -31,39 +32,69 @@ public class EnigmaClient {
     public final static String ServerPublicKeyFile = "keys/Server.pbk";
     public static String ServerDomainName;
     public final static int ServerPort = 21947;
-    public final static String EnigmaVersion = "1.00";
+    public final static String EnigmaVersion = "1.2",ClientName = "Enigma";
     public static SecretKey AESEncryptionKey;
     //TODO handle a quick fresh install
     public static void main(String[] args) throws IOException {
-//        int resp= -1;
-//        while (resp != 1){
-//            resp = RawConsoleInput.read(false);
-//            if(resp >= 0){
-//                System.out.println("code " +  resp);
-//            }
-//        }
-//        System.exit(-1);
-//        RawConsoleInput.resetConsoleMode();
+
         System.out.println( "Enigma " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
         //Start of Enigma
-
         if(args.length != 0){
             //TODO handle any arguments that come up
-            System.out.println("Command Line Arguments Not Yet supported ");
+            switch (args[0].toLowerCase()){
+                case "--encrypt", "--decrypt","-e","-d" ->
+                        AetherFileEncryptionCLI.Encrypt(args);
+                case "--raw-test" ->
+                    consoleRawInputTest();
+
+                case "--help","-h" ->
+                        ArgumentHelp();
+
+                default -> {
+                    System.out.println("Unknown Argument " + args[0]);
+                    ArgumentHelp();
+                }
+            }
+        }else {
+            ServerDomainName = GetServerIP();
+            CheckConfigFile();
+
+            System.out.println("Enter Encryption Password:-");
+            EncryptionPassword = GetPasswordFromUser();
+            MakeSecret();
+            CheckKeyPair();
+            //We have a config File Password and KeyPair
+            TuringConnection = new EnigmaServerConnection(ServerDomainName, ServerPort);
+            CheckRegistration();
+            AetherCLI.MainMenu();
         }
-        ServerDomainName = GetServerIP();
-        CheckConfigFile();
 
-        System.out.println("Enter Encryption Password:-");
-        EncryptionPassword = GetPasswordFromUser();
-        MakeSecret();
-        CheckKeyPair();
-        //We have a config File Password and KeyPair
-        TuringConnection = new EnigmaServerConnection(ServerDomainName, ServerPort);
-        CheckRegistration();
-        EnigmaCLI.MainMenu();
+    }
 
+    private static void consoleRawInputTest() throws IOException {
+        System.out.println("DEBUG TOOL RAW CHAR INPUT" +
+                "\n CTRL + C to Exit ie resp code 3\n");
+        int resp= -1;
+        while (resp != 3){
+            resp = RawConsoleInput.read(false);
+            if(resp >= 0){
+                System.out.println("code:-" +  resp);
+            }
+        }
+        try {
+            RawConsoleInput.resetConsoleMode();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
+    public static void ArgumentHelp() {
+        System.out.println(
+                    "\t==Help==\n" +
+                    "-h --help              prints this help info\n" +
+                    "-e --encrypt   [File]  Encrypt a certain file\n" +
+                    "-d --decrypt   [File]  Decrypt a encrypted file\n"
+        );
     }
 
     private static String GetServerIP(){
@@ -99,7 +130,7 @@ public class EnigmaClient {
     private static void MakeSecret() {
         try{
             final KeyGenerator kg = KeyGenerator.getInstance("AES");
-            kg.init(new SecureRandom(EnigmaClient.EncryptionPassword));
+            kg.init(new SecureRandom(Aether.EncryptionPassword));
             //TODO add salt <- NOT JOKE DO NOT REMOVE
             AESEncryptionKey = kg.generateKey();
 
@@ -156,7 +187,7 @@ public class EnigmaClient {
             ServerPbk = TuringConnection.GetPublicKey();
             byte[] hash = EnigmaCrypto.SHA256(ServerPbk.getEncoded());
             System.out.println("Got Key As :-");
-            System.out.println(EnigmaCLI.toHexString(ServerPbk.getEncoded()));
+            System.out.println(AetherCLI.toHexString(ServerPbk.getEncoded()));
             System.out.println("SHA-256:-");
             System.out.println(Base64.getEncoder().encodeToString(hash));
             System.out.println("Would you like this Save This Key?(yes/no)");
@@ -181,9 +212,9 @@ public class EnigmaClient {
         while (true){
             char[] Password2;
             System.out.println("Enter Password:-");
-            hash = EnigmaCLI.getPassword(System.console());
+            hash = AetherCLI.getPassword(System.console());
             System.out.println("Confirm Password:-");
-            Password2 = EnigmaCLI.getPassword(System.console());
+            Password2 = AetherCLI.getPassword(System.console());
             if(Arrays.equals(hash,Password2)){
                 Arrays.fill(Password2,'\0');
                 break;
@@ -238,7 +269,7 @@ public class EnigmaClient {
     private static byte[] GetPasswordFromUser() {
         byte[] hash = new byte[0];
 
-        char[] pass = EnigmaCLI.getPassword(System.console());
+        char[] pass = AetherCLI.getPassword(System.console());
         try {
             hash = EnigmaCrypto.SHA256(pass);
         } catch (NoSuchAlgorithmException e) {
@@ -352,7 +383,7 @@ public class EnigmaClient {
                 "Save This Key? (yes/no)");
 
         String resp = scn.nextLine();
-        EnigmaCLI.CLS();
+        AetherCLI.CLS();
         System.out.println("Screen Cleared to Hide Keys");
         if(!resp.toLowerCase().startsWith("y")){
             System.out.println("Can Not Run Without KeyPair");

@@ -1,6 +1,7 @@
-package org.dragonservers.enigma.NetworkProtocal;
+package org.dragonservers.enigma.NetworkProtocol;
 
 public class Commands {
+
 	public final static String GetServerPublicKeyCommand = "GET PBK";
 	public final static String BadCommandResponse = "BAD CMD";
 	public final static String FollowingEncrypted = "ENC";
