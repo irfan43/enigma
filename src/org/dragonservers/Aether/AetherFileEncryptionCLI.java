@@ -51,6 +51,7 @@ public class AetherFileEncryptionCLI {
 			}
 		}
 	}
+
 	private static String GetFileName(Path path){
 		return path.toFile().getName();
 	}
@@ -109,6 +110,7 @@ public class AetherFileEncryptionCLI {
 			CipherInputStream cis = new CipherInputStream(is,dCipher);
 
 			String outputFile = new String( EnigmaBlock.ReadBlock(cis),StandardCharsets.UTF_8 );
+
 			verifyFileName(outputFile);
 
 			Path outputPath = Path.of(outputFile);
@@ -152,7 +154,7 @@ public class AetherFileEncryptionCLI {
 
 		int resp = is.read(readSha);
 
-			System.out.println("Resp = " + resp);
+		System.out.println("Resp = " + resp);
 
 		if(Arrays.equals(sha,readSha)){
 			System.out.println("Good SHA256 hash\n" +
@@ -190,10 +192,11 @@ public class AetherFileEncryptionCLI {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 
 			CopyStream(is,cipherOS,md, Files.size(target));
+
 			byte[] sha = md.digest();
 			System.out.println("SHA256:-" + Base64.getEncoder().encodeToString(sha));
 			cipherOS.write(sha);
-
+			cipherOS.close();
 		}catch (IOException e){
 			System.out.println("IO Exception while encrypting File");
 			e.printStackTrace();
@@ -202,10 +205,13 @@ public class AetherFileEncryptionCLI {
 			e.printStackTrace();
 		}finally {
 			try {
+
 				if(is != null)
 					is.close();
-				if(os != null)
+				if(os != null) {
+					os.flush();
 					os.close();
+				}
 			}catch (Exception e){
 				System.out.println("Exception while Closing Files");
 			}

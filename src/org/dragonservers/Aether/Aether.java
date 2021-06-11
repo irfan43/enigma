@@ -1,7 +1,6 @@
 package org.dragonservers.Aether;
 
 
-import com.sun.jdi.connect.Connector;
 import org.dragonservers.enigma.*;
 
 import javax.crypto.KeyGenerator;
@@ -20,7 +19,7 @@ public class Aether {
 
     // Interface Objects
     public static EnigmaKeyHandler OurKeyHandler;
-    public static EnigmaServerConnection TuringConnection;
+    public static TuringConnection turingConnection;
     public static PublicKey ServerPublicKey;
 
     //State Variables
@@ -44,8 +43,9 @@ public class Aether {
             switch (args[0].toLowerCase()){
                 case "--encrypt", "--decrypt","-e","-d" ->
                         AetherFileEncryptionCLI.Encrypt(args);
+
                 case "--raw-test" ->
-                    consoleRawInputTest();
+                        consoleRawInputTest();
 
                 case "--help","-h" ->
                         ArgumentHelp();
@@ -64,7 +64,11 @@ public class Aether {
             MakeSecret();
             CheckKeyPair();
             //We have a config File Password and KeyPair
-            TuringConnection = new EnigmaServerConnection(ServerDomainName, ServerPort);
+            try {
+                turingConnection = new TuringConnection(ServerDomainName, ServerPort);
+            } catch (GeneralSecurityException e) {
+                e.printStackTrace();
+            }
             CheckRegistration();
             AetherCLI.MainMenu();
         }
@@ -184,7 +188,7 @@ public class Aether {
         }
         PublicKey ServerPbk = null;
         try {
-            ServerPbk = TuringConnection.GetPublicKey();
+            ServerPbk = turingConnection.GetPublicKey();
             byte[] hash = EnigmaCrypto.SHA256(ServerPbk.getEncoded());
             System.out.println("Got Key As :-");
             System.out.println(AetherCLI.toHexString(ServerPbk.getEncoded()));
@@ -247,7 +251,7 @@ public class Aether {
             redo = false;
             try {
                 System.out.println("Starting Registration ");
-                TuringConnection.RegisterUser(rgCode, OurKeyHandler, LoginPassword);
+                turingConnection.RegisterUser(rgCode, OurKeyHandler, LoginPassword);
             } catch (IOException | GeneralSecurityException e) {
                 System.out.println("Error while communicating with server");
                 e.printStackTrace();

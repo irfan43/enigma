@@ -2,7 +2,7 @@ package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.EnigmaCrypto;
 import org.dragonservers.enigma.EnigmaKeyHandler;
-import org.dragonservers.enigma.EnigmaNetworkHeader;
+import org.dragonservers.enigma.NetworkProtocol.EnigmaNetworkHeader;
 import org.dragonservers.enigma.EnigmaPacket;
 
 import javax.crypto.*;
@@ -40,7 +40,7 @@ public class AetherFriendManager {
 		return enigmaFriendList;
 	}
 	public static String GetIntroductionToken(String friendsUsername) throws GeneralSecurityException, IOException {
-		PublicKey friendsPublicKey = Aether.TuringConnection.GetUserPublicKey(friendsUsername);
+		PublicKey friendsPublicKey = Aether.turingConnection.GetUserPublicKey(friendsUsername);
 		return GetIntroductionToken(friendsUsername,friendsPublicKey);
 	}
 	public static String GetIntroductionToken(String friendsUsername,PublicKey friendsPublicKey) throws GeneralSecurityException, IOException {
@@ -72,7 +72,7 @@ public class AetherFriendManager {
 		String username = GetUsernameFromPublicKey(Public_Key);
 		if(username == null){
 			//new request
-			username = Aether.TuringConnection.GetUsername(friendsPublicKey);
+			username = Aether.turingConnection.GetUsername(friendsPublicKey);
 			if(username == null)
 				throw new IllegalArgumentException("Illegal Username");
 			AetherFriend ef;

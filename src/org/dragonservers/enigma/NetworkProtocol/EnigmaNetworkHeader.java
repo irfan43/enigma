@@ -1,4 +1,4 @@
-package org.dragonservers.enigma;
+package org.dragonservers.enigma.NetworkProtocol;
 
 import java.util.*;
 
@@ -9,6 +9,7 @@ public class EnigmaNetworkHeader {
 
 	private final char Separator = ':';
 
+	//TODO rewrite this
 
 	public EnigmaNetworkHeader(String Text){
 		UpdateHeader(Text);

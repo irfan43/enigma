@@ -1,6 +1,7 @@
 package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.*;
+import org.dragonservers.enigma.NetworkProtocol.EnigmaNetworkHeader;
 
 import javax.crypto.*;
 import java.io.*;

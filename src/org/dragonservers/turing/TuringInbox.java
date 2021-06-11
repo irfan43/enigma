@@ -30,11 +30,7 @@ public class TuringInbox {
 		}
 	}
 
-	public boolean SendPacket(byte[] packetEncoded)
-			throws NoSuchAlgorithmException, InvalidKeySpecException, IOException {
-		return SendPacket(new EnigmaPacket(packetEncoded));
-	}
-	public boolean SendPacket(EnigmaPacket packet) {
+	public boolean queuePacket(EnigmaPacket packet) {
 		//first we make sure the specified Location Exists
 		byte[] key = packet.getToAddr().getEncoded();
 		UserInbox toInbox;

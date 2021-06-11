@@ -1,15 +1,19 @@
 package org.dragonservers.turing;
 
 import org.dragonservers.enigma.EnigmaKeyHandler;
+import org.dragonservers.enigma.EnigmaPacket;
 import org.dragonservers.enigma.EnigmaUser;
+import org.dragonservers.enigma.NetworkProtocol.EnigmaLoginRequest;
 import org.dragonservers.enigma.NetworkProtocol.EnigmaRegistrationRequest;
 
 import java.io.*;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Set;
@@ -37,14 +41,42 @@ public class TuringUserFactory {
 		}
 	}
 	//TODO overload with base 64 string for public key input to speed things up
-	public boolean VerifyPasswordHash(byte[] publicKey,byte[] passwordHash,String hashHeaderUTC) throws NoSuchAlgorithmException {
-		boolean rtr = false;
-		synchronized (lockObject){
-			EnigmaUser enigmaUser = PublicKeyMap.get(Base64.getEncoder().encodeToString(publicKey));
-			if(enigmaUser != null)
-				rtr = enigmaUser.VerifyPassword(passwordHash,hashHeaderUTC);
+	public void VerifyPasswordHash(byte[] publicKey,String username,byte[] loginHash,String serverRandom)
+			throws NoSuchAlgorithmException {
+		VerifyPasswordHash(
+				Base64.getEncoder().encodeToString(publicKey),
+				username,
+				loginHash,
+				serverRandom);
+	}
+	public void VerifyPasswordHash(String publicKey,String username,byte[] loginHash,String serverRandom)
+			throws NoSuchAlgorithmException {
+		TuringUser turingUser;
+		synchronized (lockObject) {
+			turingUser = PublicKeyMap.get(publicKey);
 		}
-		return rtr;
+		if(turingUser == null)
+			throw new TuringConnectionException("BAD Public Key");
+		if( !(turingUser.getUsername().equals(username) && turingUser.VerifyLoginHash(loginHash,serverRandom)) )
+			throw new TuringConnectionException("BAD Credentials");
+	}
+
+	public void VerifyLoginRequest(EnigmaLoginRequest loginRequest){
+		TuringUser tu;
+		synchronized (lockObject){
+			tu = PublicKeyMap.get(loginRequest.publicKeyB64);
+		}
+		if(tu == null)
+			throw new TuringConnectionException("BAD Credentials");
+
+		if(!tu.getUsername().equals(loginRequest.uname))
+			throw new TuringConnectionException("BAD Credentials");
+
+		try {
+			tu.VerifyLoginHash(loginRequest.lHash,loginRequest.serRandom);
+		} catch (NoSuchAlgorithmException e) {
+			throw new TuringConnectionException("BAD SERVER");
+		}
 	}
 	public void RegisterUser(EnigmaRegistrationRequest registrationRequest){
 		/*
@@ -56,15 +88,20 @@ public class TuringUserFactory {
 		*  -5 Server Error
 		* */
 		if(!EnigmaUser.IsValidUsername(registrationRequest.uname))
-			throw new TuringConnectionException("bad invalid_username");
+			throw new TuringConnectionException("BAD invalid_username");
 		if(UsernameExist(registrationRequest.uname))
-			throw new TuringConnectionException("bad username_exist");
+			throw new TuringConnectionException("BAD username_exist");
 		if(PublicKeyExist(registrationRequest.publicKeyEncoded))
-			throw new TuringConnectionException("bad public_key_exist");
+			throw new TuringConnectionException("BAD public_key_exist");
 
 
 		//validated that the parameters are valid
-		TuringUser toAdd = new TuringUser(registrationRequest);
+		TuringUser toAdd = null;
+		try {
+			toAdd = new TuringUser(registrationRequest);
+		} catch (NoSuchAlgorithmException e) {
+			throw new TuringConnectionException("BAD SERVER");
+		}
 		Turing.EnigmaInboxs.MakeInbox(registrationRequest.publicKeyEncoded);
 		AddUser(toAdd);
 
@@ -116,7 +153,37 @@ public class TuringUserFactory {
 		}
 		return pbk;
 	}
+	public void hookPacketListener(String publicKey, Socket socket, InputStream inputStream, OutputStream outputStream) throws IOException {
+		TuringUser turingUser;
+		synchronized (lockObject){
+			turingUser = PublicKeyMap.get(publicKey);
+		}
+		if(turingUser == null)
+			throw new TuringConnectionException("BAD ILLEGAL STATE");
+		turingUser.hookPacketListener(socket, inputStream, outputStream);
+	}
+	public boolean SendPacket(EnigmaPacket enigmaPacket,byte[] FromAddrs) throws IOException{
+		if(!Arrays.equals(
+				enigmaPacket
+						.getFromAddr()
+						.getEncoded(),
+				FromAddrs
+			)
+		)
+			throw new TuringConnectionException("BAD From Address Forgery");
+		return SendPacket(enigmaPacket);
+	}
+	public boolean SendPacket(EnigmaPacket enigmaPacket) throws IOException {
+		TuringUser turingUser;
+		String toAddress = Base64.getEncoder().encodeToString( enigmaPacket.getToAddr().getEncoded() );
+		synchronized (lockObject){
+			turingUser = PublicKeyMap.get(toAddress);
+		}
 
+		if(turingUser == null)
+			throw new IllegalArgumentException("BAD TOO ADDRESS");
+		return turingUser.SendPacket(enigmaPacket);
+	}
 
 	private void AddUser(TuringUser turingUser){
 		String euUsername = turingUser.getUsername();

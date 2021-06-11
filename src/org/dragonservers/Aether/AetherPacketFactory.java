@@ -92,7 +92,7 @@ public class AetherPacketFactory {
 		if(enigmaPacket != null){
 			//TODO if failed to send packet redo send
 
-			Aether.TuringConnection.SendPacket(enigmaPacket);
+			Aether.turingConnection.SendPacket(enigmaPacket);
 		}
 		return (enigmaPacket != null);
 	}

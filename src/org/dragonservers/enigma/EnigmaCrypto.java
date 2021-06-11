@@ -28,6 +28,7 @@ public class EnigmaCrypto {
         bin = SHA256(bin);
         return bin;
     }
+    @Deprecated
     public static byte[] AESEncrypt(byte[] data,byte[] key) throws GeneralSecurityException {
         byte[] iv = new byte[16];
         new SecureRandom().nextBytes(iv);
@@ -52,6 +53,7 @@ public class EnigmaCrypto {
         bb.put(encrypted);
         return bb.array();
     }
+    @Deprecated
     public static byte[] AESDecrypt(byte[] Encrypted,byte[] key) throws GeneralSecurityException {
         byte[] salt = SHA256(key);
         ByteBuffer bb = ByteBuffer.wrap(Encrypted);

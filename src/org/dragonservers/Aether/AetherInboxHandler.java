@@ -17,7 +17,7 @@ public class AetherInboxHandler implements Runnable{
 			EnigmaPacket ep = null;
 			do {
 				try {
-					ep = Aether.TuringConnection.GetPacket();
+					ep = Aether.turingConnection.GetPacket();
 					//TODO handle loss of internet better
 					errors = 0;
 				} catch (ConnectException e){

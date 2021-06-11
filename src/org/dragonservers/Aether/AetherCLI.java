@@ -101,7 +101,7 @@ public class AetherCLI {
 			String username = Aether.scn.nextLine().toLowerCase(Locale.ROOT);
 			PublicKey publicKey = null;
 			try {
-				publicKey = Aether.TuringConnection.GetUserPublicKey(username);
+				publicKey = Aether.turingConnection.GetUserPublicKey(username);
 			}catch (Exception e){
 				System.out.println("Error While Trying to get Public Key From the Server");
 				e.getMessage();
@@ -260,7 +260,7 @@ public class AetherCLI {
 
 	private static void LogIn() throws IOException, GeneralSecurityException {
 		System.out.println("Logging in....");
-		Aether.TuringConnection.LogIn();
+		Aether.turingConnection.LogIn();
 		System.out.println("Logged IN");
 
 

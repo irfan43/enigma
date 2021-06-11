@@ -12,22 +12,22 @@
 case Commands.RegistrationCommand ->
 	RGS
 	username:"<username>"
-	password:"<passwordHash>"  # SHA256("Enigma_Turing" + password + "Turing_Enigma")
+	password:"<passwordHash>"  # SHA256("Enigma_Turing" + password + "Turing_Enigma")**** reference below hashing info
 	publicKey:"Base64publickeyencoded"
 	regCode:"code"
 	sign:"Base64Sign" #sign( A + "username" + "<passwordHash>" + reg_code + publickey + A) //base 64 and utf8 encoding
 
-Server stores sha256("Turing_<username>_Storage" + passwordHash + "Turing_<username>_Storage" + Base64publickeyencoded)
+
 
 case Commands.LoginCommand  ->
 	request
 		Login
 		username:"<username>"
-		password:"<passwordHash>" # SHA256("Enigma_Turing" + password + "Turing_Enigma")
-		publickey:"Base64publickeyencoded"
+		password:"<passwordHash>" # SHA256("Enigma_Turing" + password + "Turing_Enigma") + **** reference below hashing info
+		public-key:"Base64publickeyencoded"
 		sign:"Base64Sign" #sign(A + "publickey" + password + username + A)
 	returns
-		good | BAD HEADER / USERNAME_EXISTS / SERVER_ERROR
+		good | BAD HEADER / BAD Credential / SERVER_ERROR
 
 case Commands.GetPacketCommand ->
 	request
@@ -38,9 +38,9 @@ case Commands.GetPacketCommand ->
 	#this is a blocking command
 case Commands.SendPacketCommand >
 	request
-		send PACKET
+		send PACKET >
 
-		< [EnigmaPacket]
+		[EnigmaPacket] >
 	return
 		good | BAD Illegal state |
 
@@ -55,7 +55,7 @@ case Commands.GetHistoryCommand ->
 		Get HISTORY
 	return
 		good | bad state
-case Commands.GetUserPublicKeyCommand ->
+case Commands.GetPublicKeyCommand ->
 	request
 		GET USER_PUBLICKEY
 		searchUsername:"<search_Username>"
@@ -72,3 +72,20 @@ case Commands.GetUsernameCommand ->
 	return
 		good | Bad sign
 		username:"<username>" | DOES_NOT_EXIST
+
+
+
+			#Password Hash Handling
+
+Primary Hash = SHA256("Enigma_Turing_$Username$_" + password + "_$Username$_Turing_Enigma")
+
+//the exact header and footer is not important so it can be from implementation to implementation
+//however after the primary hash everything else should be the same
+
+Server Hash = SHA256("Turing_" + Base64(PrimaryHash) + "_Turing")
+or AKA Stored Hash
+
+//server hash is stored in the server side,
+//during login it's require for the client to calculate this server hash as well to calculate the login hash
+
+Login hash = SHA256("$USERNAME$_$SERVERRANDOM$" + Base64(ServerHash) +"$USERNAME$_$SERVERRANDOM$")
