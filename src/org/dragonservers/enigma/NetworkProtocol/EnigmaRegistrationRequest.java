@@ -3,7 +3,6 @@ package org.dragonservers.enigma.NetworkProtocol;
 import org.dragonservers.enigma.EnigmaKeyHandler;
 import org.dragonservers.turing.TuringConnectionException;
 
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
@@ -50,7 +49,7 @@ public class EnigmaRegistrationRequest {
 		try{
 			decodeStrings(enigmaNetworkHeader);
 			decodeBase64();
-			publicKey = EnigmaKeyHandler.PublicKeyFromEnc(publicKeyEncoded);
+			publicKey = EnigmaKeyHandler.RSAPublicKeyFromEnc(publicKeyEncoded);
 		} catch (IllegalArgumentException
 				| InvalidKeySpecException
 				| NoSuchAlgorithmException

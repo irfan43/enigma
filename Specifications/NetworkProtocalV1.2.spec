@@ -62,7 +62,7 @@ case Commands.GetPublicKeyCommand ->
 		sign: sign(A + search_Username + A)
 	return
 		good | BAD sign
-		publickey:"<username>" | DOES_NOT_EXIST
+		publickey:"<Base64 PublicKey>" | DOES_NOT_EXIST
 
 case Commands.GetUsernameCommand ->
 	request

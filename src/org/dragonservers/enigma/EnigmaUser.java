@@ -64,6 +64,7 @@ public class EnigmaUser implements Serializable {
                         username + "_" + serverRandom
                 ).getBytes(StandardCharsets.UTF_8)
         );
+        Arrays.fill(serverHash,(byte)0x00);
         return md.digest();
     }
 

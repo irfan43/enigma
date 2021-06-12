@@ -1,6 +1,5 @@
 package org.dragonservers.turing;
 
-import org.dragonservers.enigma.EnigmaKeyHandler;
 import org.dragonservers.enigma.EnigmaPacket;
 import org.dragonservers.enigma.NetworkProtocol.*;
 import org.dragonservers.enigma.EnigmaBlock;
@@ -106,7 +105,10 @@ public class NetworkConnection implements Runnable{
 		bw.write("BAD COMMAND\n\n");
 	}
 
+//Registration Commands
 	private void HandleRegistration(EnigmaNetworkHeader enh) throws IOException {
+		if(logged_in)
+			throw new TuringConnectionException("Already Logged In");
 		EnigmaRegistrationRequest err =
 				new EnigmaRegistrationRequest(enh,randomServer,true);
 		redeemAndRegister(err);
@@ -116,13 +118,31 @@ public class NetworkConnection implements Runnable{
 			throw new TuringConnectionException("BAD Code");
 		try {
 			Turing.EUserFac.RegisterUser(err);
-		}catch (Exception e){
+		}
+		catch (Exception e){
 			Turing.CodeFac.MarkUnused(err.regCode);
 			throw new TuringConnectionException(e.getMessage());
 		}
 		bw.write("good\n\n");
 	}
+//State Commands
+	private void HandleLogin(EnigmaNetworkHeader enh) {
+		if(logged_in)
+			throw new TuringConnectionException("Already Logged In");
 
+		EnigmaLoginRequest req = new EnigmaLoginRequest(enh,randomServer,true);
+		Turing.EUserFac.VerifyLoginRequest(req);
+
+		clientUsername 		= req.uname;
+		publicRSAKeyB64 	= req.publicKeyB64;
+		publicRSAKeyENC 	= req.publicKeyEnc;
+		logged_in 			= true;
+	}
+	private void HandleLogoutCommand(EnigmaNetworkHeader enh) throws IOException {
+		bw.write("goodbye\n\n");
+		if(!socket.isClosed())socket.close();
+	}
+//Database Search Commands
 	private void HandleGetUsernameCommand(EnigmaNetworkHeader enh) throws IOException {
 		verifyLoggedIn();
 		EnigmaNameRequest req = new EnigmaNameRequest(enh,randomServer,clientRSAKey);
@@ -143,7 +163,8 @@ public class NetworkConnection implements Runnable{
 		try{
 			publicKeyB64 = Commands.PublicKeyKey + ":" +
 					Turing.EUserFac.GetPublicKeyB64(req.searchName);
-		}catch (IllegalArgumentException e){
+		}
+		catch (IllegalArgumentException e){
 			publicKeyB64 = "DOES_NOT_EXIST";
 		}
 		bw.write("good\n");
@@ -152,41 +173,28 @@ public class NetworkConnection implements Runnable{
 	private void HandleGetHistoryCommand(EnigmaNetworkHeader enh) {
 
 	}
+//Packet Functions
 	private void HandleSendPacketCommand(EnigmaNetworkHeader enh) throws IOException {
-		verifyLoggedIn();
-		byte[] packetEnc = EnigmaBlock.ReadBlock(cis);
-		EnigmaPacket packet;
-		try{
-			packet = new EnigmaPacket(packetEnc);
-		}
-		catch (IllegalArgumentException | GeneralSecurityException e){
-			throw new TuringConnectionException("BAD PACKET " );
-		}
-		Turing.EUserFac.SendPacket(packet,publicRSAKeyENC);
-		bw.write("good\n");
-		bw.newLine();
+	verifyLoggedIn();
+	byte[] packetEnc = EnigmaBlock.ReadBlock(cis);
+	EnigmaPacket packet;
+	try{
+		packet = new EnigmaPacket(packetEnc);
 	}
+	catch (IllegalArgumentException | GeneralSecurityException e){
+		throw new TuringConnectionException("BAD PACKET " );
+	}
+	Turing.EUserFac.SendPacket(packet,publicRSAKeyENC);
+	bw.write("good\n");
+	bw.newLine();
+}
 	private void HandleGetPacketCommand(EnigmaNetworkHeader enh) throws IOException {
 		verifyLoggedIn();
 		Turing.EUserFac.hookPacketListener(publicRSAKeyB64,socket,cis,cos);
 		listeningPacket = true;
 	}
 
-	private void HandleLogoutCommand(EnigmaNetworkHeader enh) throws IOException {
-		bw.write("goodbye\n\n");
-		if(!socket.isClosed())socket.close();
-	}
-	private void HandleLogin(EnigmaNetworkHeader enh) {
-		EnigmaLoginRequest req = new EnigmaLoginRequest(enh,randomServer,true);
-		Turing.EUserFac.VerifyLoginRequest(req);
-
-		clientUsername 		= req.uname;
-		publicRSAKeyB64 	= req.publicKeyB64;
-		publicRSAKeyENC 	= req.publicKeyEnc;
-		logged_in 			= true;
-	}
-
-	//util methods
+//util methods
 	private void verifyLoggedIn(){
 		if(!logged_in)
 			throw new TuringConnectionException("BAD STATE NOT LOGGED IN");
@@ -225,11 +233,11 @@ public class NetworkConnection implements Runnable{
 		EnigmaBlock.WriteBlock(os,Turing.TuringKH.GetPublicKey().getEncoded());
 		String clientInformation = EnigmaBlock.ReadBlockLine(is);
 	}
-	//Handle ECDH Key Exchange
+//Handle ECDH Key Exchange
 	private void HandleECDHExchange(InputStream dis, OutputStream dos)
 			throws IOException, GeneralSecurityException {
 		//TODO have some interface to send available curves for client to select
-		KeyPair kp = EnigmaKeyHandler.generateECDHKey();
+		KeyPair kp = EnigmaECDH.generateECDHKey();
 		sendServerECDHKey(dos,kp);
 
 		sharedSecret = EnigmaECDH.makeSecret(kp, getClientPublicKeyECDH(dis));
@@ -246,7 +254,7 @@ public class NetworkConnection implements Runnable{
 				.publicECDHKeyFromEncoded(
 						EnigmaBlock.ReadBlock(is));
 	}
-	//Create Key
+//Create Key and Streams
 	private void CreateSecretKey(InputStream is, OutputStream os)
 			throws IOException, GeneralSecurityException {
 		secretKey = new SecretKeySpec(sharedSecret, 0, 16, "AES");

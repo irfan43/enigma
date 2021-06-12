@@ -40,7 +40,7 @@ public class AetherFriendManager {
 		return enigmaFriendList;
 	}
 	public static String GetIntroductionToken(String friendsUsername) throws GeneralSecurityException, IOException {
-		PublicKey friendsPublicKey = Aether.turingConnection.GetUserPublicKey(friendsUsername);
+		PublicKey friendsPublicKey = EnigmaKeyHandler.RSAPublicKeyFromEnc(Aether.turingConnection.GetPublicKey(friendsUsername));
 		return GetIntroductionToken(friendsUsername,friendsPublicKey);
 	}
 	public static String GetIntroductionToken(String friendsUsername,PublicKey friendsPublicKey) throws GeneralSecurityException, IOException {
@@ -64,7 +64,7 @@ public class AetherFriendManager {
 		String Public_Key = tkn.GetValue("My_RSA_PublicKey");
 		PublicKey friendsPublicKey;
 		try{
-			 friendsPublicKey = EnigmaKeyHandler.PublicKeyFromEnc(
+			 friendsPublicKey = EnigmaKeyHandler.RSAPublicKeyFromEnc(
 			 		Base64.getDecoder().decode(Public_Key));
 		}catch (Exception e){
 			throw new IllegalArgumentException("Bad Introduction Token");

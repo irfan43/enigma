@@ -53,7 +53,7 @@ public class TextMessage implements Serializable {
 
 
 	public boolean verify() throws GeneralSecurityException, IOException {
-		PublicKey pbk = EnigmaKeyHandler.PublicKeyFromEnc(FromAddr);
+		PublicKey pbk = EnigmaKeyHandler.RSAPublicKeyFromEnc(FromAddr);
 		return verify(pbk);
 	}
 	public boolean verify(PublicKey publicKey) throws GeneralSecurityException, IOException {

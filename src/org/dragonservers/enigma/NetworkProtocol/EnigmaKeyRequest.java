@@ -1,5 +1,6 @@
 package org.dragonservers.enigma.NetworkProtocol;
 
+import org.dragonservers.enigma.EnigmaKeyHandler;
 import org.dragonservers.turing.TuringConnectionException;
 
 import java.security.*;
@@ -15,14 +16,12 @@ public class EnigmaKeyRequest {
 
 	public byte[] signBin;
 
-	public EnigmaKeyRequest(String searchUsername,String serverRandom,KeyPair kp)
+	public EnigmaKeyRequest(String searchUsername, String serverRandom, EnigmaKeyHandler ekh)
 			throws NoSuchAlgorithmException, SignatureException, InvalidKeyException {
 		serRandom = serverRandom;
 		searchName = searchUsername;
-		sign(kp.getPrivate());
+		sign(ekh);
 	}
-
-
 
 	public EnigmaKeyRequest(EnigmaNetworkHeader enh, String serverRandom, PublicKey publicKey) {
 		serRandom = serverRandom;
@@ -32,8 +31,8 @@ public class EnigmaKeyRequest {
 	}
 	private void decodeStrings(EnigmaNetworkHeader enh) {
 		try {
-			searchName = enh.GetValue(UsernameKey);
-			signB64 = enh.GetValue(SignatureKey);
+			searchName 		= enh.GetValue(SearchUsernameKey);
+			signB64 		= enh.GetValue(SignatureKey);
 		}catch (IllegalArgumentException e){
 			throw new TuringConnectionException("BAD HEADER");
 		}
@@ -62,15 +61,14 @@ public class EnigmaKeyRequest {
 	public EnigmaNetworkHeader getHeader(){
 		EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
 
-		enh.SetValue(SignatureKey	,signB64);
-		enh.SetValue(UsernameKey	,searchName);
+		enh.SetValue(SignatureKey			,signB64);
+		enh.SetValue(SearchUsernameKey		,searchName);
 
 		return enh;
 	}
-	private void sign(PrivateKey privateKey)
+	private void sign(EnigmaKeyHandler ekh)
 			throws NoSuchAlgorithmException, SignatureException, InvalidKeyException {
-		Signature sgn = Signature.getInstance("SHA256withRSA");
-		sgn.initSign(privateKey);
+		Signature sgn = ekh.GetSignature();
 		sgn.update(buildSignData());
 		signBin = sgn.sign();
 		signB64 = Base64.getEncoder().encodeToString(signBin);

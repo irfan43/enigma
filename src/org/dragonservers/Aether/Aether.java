@@ -188,7 +188,7 @@ public class Aether {
         }
         PublicKey ServerPbk = null;
         try {
-            ServerPbk = turingConnection.GetPublicKey();
+            ServerPbk = turingConnection.GetServerPublicKey();
             byte[] hash = EnigmaCrypto.SHA256(ServerPbk.getEncoded());
             System.out.println("Got Key As :-");
             System.out.println(AetherCLI.toHexString(ServerPbk.getEncoded()));
@@ -212,7 +212,7 @@ public class Aether {
                 Path.of(ServerPublicKeyFile),ServerPublicKey,true,OurKeyHandler.GetPrivateKey());
     }
     private static byte[] VerifyGetPassword() throws NoSuchAlgorithmException {
-        char[] hash = new char[0];
+        char[] hash;
         while (true){
             char[] Password2;
             System.out.println("Enter Password:-");
@@ -308,8 +308,8 @@ public class Aether {
                 try {
                     KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(), EncryptionPassword,Username);
                     OurKeyHandler = new EnigmaKeyHandler(kp);
-                    PrintDataHash("Public Key", OurKeyHandler.GetPublicKey().getEncoded());
-                    PrintDataHash("Private Key", OurKeyHandler.GetPrivateKey().getEncoded());
+                    PrintDataHash("Public Key", kp.getPublic().getEncoded());
+                    PrintDataHash("Private Key", kp.getPrivate().getEncoded());
                 } catch (IOException | InvalidKeySpecException e) {
                     //TODO handle bad password
                     System.out.println("Ran into a Error while decrypting KeyPair File\n" +
@@ -368,7 +368,7 @@ public class Aether {
         System.out.println("Generating New KeyPair");
         KeyPair kp = null;
         try {
-            kp = EnigmaKeyHandler.GenerateKeypair();
+            kp = EnigmaKeyHandler.RSAGenerateKeypair();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.exit(-2);

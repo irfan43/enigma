@@ -88,7 +88,7 @@ public class EnigmaFile {
             throw new IOException("BAD HASH");
 
         bis.close();
-        return EnigmaKeyHandler.KeyPairFromEnc(PubEnc,PrvEnc);
+        return EnigmaKeyHandler.RSAKeyPairFromEnc(PubEnc,PrvEnc);
     }
     //Writing
     //Master Function
@@ -131,7 +131,7 @@ public class EnigmaFile {
         if(!Arrays.equals(signature,PublicKeySignedSignature))
             throw new IOException("Bad Signature on Public Key File");
         byte[] pbkEnc = readBlock(bis);
-        PublicKey pbk = EnigmaKeyHandler.PublicKeyFromEnc(pbkEnc);
+        PublicKey pbk = EnigmaKeyHandler.RSAPublicKeyFromEnc(pbkEnc);
 
         Signature sgn = Signature.getInstance("SHA256withRSA");
         sgn.initVerify(publicKey);
@@ -143,6 +143,7 @@ public class EnigmaFile {
         return pbk;
 
     }
+    //TODO update this to use EnigmaKeyHandler
     public static void saveSignedPublicKey(Path file, PublicKey pbk, boolean Overwrite,  PrivateKey privateKey)
             throws GeneralSecurityException, IOException {
         if(!Overwrite && Files.exists(file))

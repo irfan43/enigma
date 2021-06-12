@@ -23,8 +23,8 @@ public class EnigmaPacket implements Serializable {
 		DataSignature = ReadBlock(bis);
 		signed = true;
 
-		FromAddr = EnigmaKeyHandler.PublicKeyFromEnc(FromAddrEnc);
-		ToAddr = EnigmaKeyHandler.PublicKeyFromEnc(ToAddrEnc);
+		FromAddr = EnigmaKeyHandler.RSAPublicKeyFromEnc(FromAddrEnc);
+		ToAddr = EnigmaKeyHandler.RSAPublicKeyFromEnc(ToAddrEnc);
 	}
 	public EnigmaPacket(PublicKey fromAddr, PublicKey toAddr) {
 		FromAddr = fromAddr;

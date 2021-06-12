@@ -1,9 +1,9 @@
 package org.dragonservers.enigma.NetworkProtocol;
 
 import org.dragonservers.enigma.EnigmaKeyHandler;
+import org.dragonservers.enigma.EnigmaUser;
 import org.dragonservers.turing.TuringConnectionException;
 
-import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Base64;
@@ -24,12 +24,13 @@ public class EnigmaLoginRequest {
 	public byte[] signBin;
 	public byte[] publicKeyEnc;
 
-	public EnigmaLoginRequest(String username, byte[] loginHash, String serverRandom,KeyPair kp)
+
+	public EnigmaLoginRequest(String username, byte[] serverHash, String serverRandom,KeyPair kp)
 			throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
 		uname 		= username;
 		serRandom 	= serverRandom;
 		setupPublicKey(kp.getPublic());
-		setupHash(loginHash);
+		setupServerHash(serverHash);
 		sign(kp.getPrivate());
 	}
 
@@ -75,8 +76,7 @@ public class EnigmaLoginRequest {
 	}
 	private PublicKey getPublicKey(){
 		try{
-
-			return EnigmaKeyHandler.PublicKeyFromEnc(publicKeyEnc);
+			return EnigmaKeyHandler.RSAPublicKeyFromEnc(publicKeyEnc);
 		}
 		catch (NoSuchAlgorithmException e) {
 			throw new TuringConnectionException("Server ERROR");
@@ -103,11 +103,14 @@ public class EnigmaLoginRequest {
 				.getEncoder()
 				.encodeToString(publicKeyEnc);
 	}
-	private void setupHash(byte[] loginHash) {
-		lHash = loginHash;
+	private void setupServerHash(byte[] serverHash) throws NoSuchAlgorithmException {
+		lHash = EnigmaUser.GenerateLoginHash(
+				serverHash,
+				serRandom,
+				uname);
 		lHashB64 = Base64
 				.getEncoder()
-				.encodeToString(loginHash);
+				.encodeToString(serverHash);
 	}
 	private void sign(PrivateKey privateKey) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
