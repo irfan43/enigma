@@ -38,11 +38,11 @@ public class EnigmaKeyHandler {
         rtr.initSign(keyPair.getPrivate());
         return rtr;
     }
-    public PublicKey GetPublicKey(){
+    public PublicKey getPublic(){
         return keyPair.getPublic();
     }
     @Deprecated
-    public PrivateKey GetPrivateKey() {
+    public PrivateKey getPrivate() {
         return keyPair.getPrivate();
     }
 

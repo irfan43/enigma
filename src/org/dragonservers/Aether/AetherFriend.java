@@ -43,14 +43,14 @@ public class AetherFriend implements Serializable {
 
 		EnigmaNetworkHeader enh = new EnigmaNetworkHeader();
 		enh.SetValue("My_RSA_PublicKey",
-				Base64.getEncoder().encodeToString(Aether.OurKeyHandler.GetPublicKey().getEncoded()));
+				Base64.getEncoder().encodeToString(Aether.OurKeyHandler.getPublic().getEncoded()));
 		enh.SetValue("UR_RSA_PublicKey",
 				Base64.getEncoder().encodeToString(friendsPublicKey.getEncoded()));
 		enh.SetValue("DH_PublicKey",
 				Base64.getEncoder().encodeToString(DHKeyPair.getPublic().getEncoded()));
 		Signature sgn = Signature.getInstance("SHA256withRSA");
-		sgn.initSign(Aether.OurKeyHandler.GetPrivateKey());
-		sgn.update(Aether.OurKeyHandler.GetPublicKey().getEncoded());
+		sgn.initSign(Aether.OurKeyHandler.getPrivate());
+		sgn.update(Aether.OurKeyHandler.getPublic().getEncoded());
 		sgn.update(friendsPublicKey.getEncoded());
 		sgn.update(DHKeyPair.getPublic().getEncoded());
 		enh.SetValue("Sign",
@@ -75,7 +75,7 @@ public class AetherFriend implements Serializable {
 				.getDecoder().decode(
 						token.GetValue("Sign"));
 		if(!Arrays.equals(OurReportedPublic,
-				Aether.OurKeyHandler.GetPublicKey().getEncoded()))
+				Aether.OurKeyHandler.getPublic().getEncoded()))
 			throw new IllegalArgumentException("Report BAD RSA our Public Key in introduction token ");
 		if(!Arrays.equals(TherePublicKey,
 				friendsPublicKey.getEncoded()))
@@ -84,7 +84,7 @@ public class AetherFriend implements Serializable {
 		Signature sgn = Signature.getInstance("SHA256withRSA");
 		sgn.initVerify(friendsPublicKey);
 		sgn.update(friendsPublicKey.getEncoded());
-		sgn.update(Aether.OurKeyHandler.GetPublicKey().getEncoded());
+		sgn.update(Aether.OurKeyHandler.getPublic().getEncoded());
 		sgn.update(ThereDHPublicKey);
 		if(!sgn.verify(signature))
 			throw new IllegalArgumentException("Bad Signature on introduction token");
@@ -128,13 +128,13 @@ public class AetherFriend implements Serializable {
 	}
 	public EnigmaPacket sendMessage(String data) throws GeneralSecurityException, IOException, ClassNotFoundException {
 		loadIfNotLoaded();
-		EnigmaPacket ep = new EnigmaPacket(Aether.OurKeyHandler.GetPublicKey(),friendsPublicKey);
+		EnigmaPacket ep = new EnigmaPacket(Aether.OurKeyHandler.getPublic(),friendsPublicKey);
 		byte[] Cmdheader = "Text".getBytes(StandardCharsets.UTF_8);
 		ByteBuffer bb = ByteBuffer.allocate(4).putInt(Cmdheader.length);
 		ep.update(bb.array());
 		ep.update(Cmdheader);
 		byte[] TMEncoded = EnigmaCrypto.AESEncrypt(
-				aetherMessages.SendMessage(data, Aether.OurKeyHandler.GetPrivateKey()),sharedSecret );
+				aetherMessages.SendMessage(data, Aether.OurKeyHandler.getPrivate()),sharedSecret );
 		ByteBuffer bbtm = ByteBuffer.allocate(4).putInt(TMEncoded.length);
 		ep.update(bbtm.array());
 		ep.update(TMEncoded);

@@ -57,7 +57,7 @@ public class AetherPacketFactory {
 		return testingPacket.VerifySignature()
 				&&Arrays.equals(
 				testingPacket.getToAddr().getEncoded(),
-				Aether.OurKeyHandler.GetPublicKey().getEncoded());
+				Aether.OurKeyHandler.getPublic().getEncoded());
 	}
 
 	/**<p>
@@ -133,7 +133,7 @@ public class AetherPacketFactory {
 		QueueToken(token,targetUsername);
 	}
 	private static void QueueToken(String token,String targetUsername){
-		EnigmaPacket ep = new EnigmaPacket(Aether.OurKeyHandler.GetPublicKey(),
+		EnigmaPacket ep = new EnigmaPacket(Aether.OurKeyHandler.getPublic(),
 				AetherFriendManager.GetPublicKeyFromUsername(targetUsername));
 		try {
 			PushBlockOnPacket(ep,

@@ -153,7 +153,7 @@ public class Aether {
 
             try {
                 PublicKey pbk = EnigmaFile.readSignedPublicKey(
-                        ServerPBKFile.toPath(),OurKeyHandler.GetPublicKey());
+                        ServerPBKFile.toPath(),OurKeyHandler.getPublic());
                 if(pbk != null){
                     ServerPublicKey = pbk;
                     PrintDataHash( "Server Public Key", ServerPublicKey.getEncoded());
@@ -209,7 +209,7 @@ public class Aether {
         }
         ServerPublicKey = ServerPbk;
         EnigmaFile.saveSignedPublicKey(
-                Path.of(ServerPublicKeyFile),ServerPublicKey,true,OurKeyHandler.GetPrivateKey());
+                Path.of(ServerPublicKeyFile),ServerPublicKey,true,OurKeyHandler.getPrivate());
     }
     private static byte[] VerifyGetPassword() throws NoSuchAlgorithmException {
         char[] hash;

@@ -4,7 +4,6 @@ package org.dragonservers.Aether;
 import org.dragonservers.enigma.EnigmaBlock;
 import org.dragonservers.enigma.EnigmaKeyHandler;
 import org.dragonservers.enigma.EnigmaPacket;
-import org.dragonservers.enigma.EnigmaUser;
 import org.dragonservers.enigma.NetworkProtocol.*;
 
 import javax.crypto.Cipher;
@@ -19,7 +18,6 @@ import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Locale;
 import java.util.Random;
 
 public class TuringConnection implements Runnable{
@@ -69,12 +67,12 @@ public class TuringConnection implements Runnable{
 	}
 
 
-	public void Register(byte[] serverHash,KeyPair kp,String username,String regCode)
+	public void Register(byte[] serverHash,String username,String regCode)
 			throws NoSuchAlgorithmException, SignatureException, InvalidKeyException, IOException {
-		VerifyLoggedOut();
+		verifyLoggedOut();
 		EnigmaRegistrationRequest err = new EnigmaRegistrationRequest(
 				serverHash,
-				kp,
+				Aether.OurKeyHandler,
 				username,
 				regCode,
 				randomServer);
@@ -83,19 +81,18 @@ public class TuringConnection implements Runnable{
 		synchronized (lockObject){
 			resp = ExecuteServerCommand(Commands.RegistrationCommand,err.getHeader());
 		}
-		if(!resp.toLowerCase().contains("good"))
-			throw new IllegalArgumentException(resp);
+		verifyGoodResponse(resp);
 	}
-	public void Login(String username,byte[] serverHash,KeyPair kp)
+	public void Login(String username,byte[] serverHash)
 			throws IOException, SignatureException, NoSuchAlgorithmException, InvalidKeyException {
 
-		VerifyLoggedOut();
+		verifyLoggedOut();
 
 		EnigmaLoginRequest elr = new EnigmaLoginRequest(
 				username,
 				serverHash,
 				randomServer,
-				kp);
+				Aether.OurKeyHandler);
 
 		Arrays.fill(serverHash,(byte)0x00);
 
@@ -105,8 +102,7 @@ public class TuringConnection implements Runnable{
 					Commands.LoginCommand,
 					elr.getHeader());
 		}
-		if(!resp.toLowerCase().contains("good"))
-			throw new IllegalArgumentException(resp);
+		verifyGoodResponse(resp);
 		LoggedIn = true;
 	}
 	public void LogOut() throws IOException {
@@ -118,11 +114,14 @@ public class TuringConnection implements Runnable{
 			sock.close();
 		}
 	}
-	public byte[] GetPublicKey(String searchUsername,KeyPair kp)
+	public byte[] GetPublicKey(String searchUsername)
 			throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
-		VerifyLoggedIn();
+		verifyLoggedIn();
 
-		EnigmaKeyRequest ekr = new EnigmaKeyRequest( searchUsername,randomServer,Aether.OurKeyHandler);
+		EnigmaKeyRequest ekr = new EnigmaKeyRequest(
+				searchUsername,
+				randomServer,
+				Aether.OurKeyHandler);
 
 		String resp;
 		synchronized (lockObject){
@@ -130,40 +129,98 @@ public class TuringConnection implements Runnable{
 					Commands.GetUserPublicKeyCommand,
 					ekr.getHeader());
 		}
-		handle resp
+
+		verifyGoodResponse(resp);
+		return decodePublicKey(resp);
 	}
-	public String GetUsername(PublicKey searchPublicKey,KeyPair kp){
-		VerifyLoggedIn();
-		String resp
-		synchronized (lockObject){
-			resp = ExecuteServerCommand();
-		}
-		handle resp
-	}
-	public void	SendPacket(EnigmaPacket enigmaPacket){
-		VerifyLoggedIn();
+	public String GetUsername(PublicKey searchPublicKey)
+			throws SignatureException, NoSuchAlgorithmException, InvalidKeyException, IOException{
+		verifyLoggedIn();
+
+		EnigmaNameRequest enr = new EnigmaNameRequest(
+				searchPublicKey.getEncoded(),
+				randomServer,
+				Aether.OurKeyHandler);
+
 		String resp;
 		synchronized (lockObject){
-			WriteServerCommand(,);
-
+			resp = ExecuteServerCommand(
+					Commands.GetUsernameCommand,
+					enr.getHeader());
 		}
-		handle resp
+		verifyGoodResponse(resp);
+		return decodeUsername(resp);
+	}
+	public void	SendPacket(EnigmaPacket enigmaPacket) throws IOException {
+		verifyLoggedIn();
+
+		byte[] bin = enigmaPacket.EncodedBinary;
+
+		String resp;
+		synchronized (lockObject){
+			WriteServerCommand(Commands.SendPacketCommand,"");
+			EnigmaBlock.WriteBlock(cos,bin);
+			resp = ReadServerResponse();
+		}
+		verifyGoodResponse(resp);
 	}
 
-	private void VerifyLoggedOut(){
+	private void verifyGoodResponse(String response){
+		if(!response
+				.toLowerCase()
+				.contains("good")
+		)
+			throw new IllegalArgumentException(response);
+	}
+	private void verifyLoggedOut(){
 		if(LoggedIn)
 			throw new IllegalArgumentException("ILLEGAL STATE Already Logged In");
 	}
-	private void VerifyLoggedIn(){
+	private void verifyLoggedIn(){
 		if(!LoggedIn)
 			throw new IllegalArgumentException("ILLEGAL STATE Command Requires Login");
 	}
+	private byte[] decodePublicKey(String response){
+		try{
+			return Base64.getDecoder().decode( decodeObject(response,Commands.PublicKeyKey) );
+		}
+		catch (IllegalArgumentException | NullPointerException e){
+			throw new IllegalArgumentException("BAD Server Response");
+		}
 
-		//		Server Introduction
+	}
+	private String decodeUsername(String response) {
+		try {
+			return decodeObject(response,Commands.UsernameKey);
+		}
+		catch (IllegalArgumentException | NullPointerException e){
+			throw new IllegalArgumentException("BAD Server Response");
+		}
+	}
+	private String decodeObject(String response, String key){
+		String rtr = null;
+		if( !response.contains(Commands.ObjectNotFound) && response.contains(key) ){
+			String[] lines = response.split("\n");
+			try {
+				for (String line : lines) {
+					if (line.contains(key)) {
+						rtr = EnigmaNetworkHeader.SplitOnSeparator(line)[1];
+						break;
+					}
+				}
+			}
+			catch (IllegalArgumentException e){
+				throw new IllegalArgumentException("Bad Server Response");
+			}
+		}
+		return rtr;
+	}
+
+//		Server Introduction
 	private void introduceServer (InputStream is, OutputStream os)
 			throws IOException, GeneralSecurityException {
 		getServerInfo				( is, os);
-		HandleECDHExchange			( is, os);
+		handleECDHExchange( is, os);
 		generateStreamsAndRandoms	( is, os);
 
 	}
@@ -177,7 +234,7 @@ public class TuringConnection implements Runnable{
 				.RSAPublicKeyFromEnc(EnigmaBlock.ReadBlock(is));
 	}
 
-	private void HandleECDHExchange (InputStream is, OutputStream os)
+	private void handleECDHExchange(InputStream is, OutputStream os)
 			throws GeneralSecurityException, IOException {
 		KeyPair kp = EnigmaECDH.generateECDHKey();
 		exchangeECDHPublicKey(os, is, kp.getPublic());
@@ -276,21 +333,18 @@ public class TuringConnection implements Runnable{
 			throw new GeneralSecurityException("BAD SERVER SIGN");
 	}
 
-
-
 	@Override
 	public void run(){
 
 	}
 
+
 	public PublicKey GetServerPublicKey(){
 		return serverRSAPublicKey;
 	}
-
 	public String GetServerVersion() {
 		return serverVersion;
 	}
-
 	public boolean isLoggedIn() {
 		return LoggedIn;
 	}

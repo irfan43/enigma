@@ -25,13 +25,13 @@ public class EnigmaLoginRequest {
 	public byte[] publicKeyEnc;
 
 
-	public EnigmaLoginRequest(String username, byte[] serverHash, String serverRandom,KeyPair kp)
+	public EnigmaLoginRequest(String username, byte[] serverHash, String serverRandom,EnigmaKeyHandler ekh)
 			throws SignatureException, NoSuchAlgorithmException, InvalidKeyException {
 		uname 		= username;
 		serRandom 	= serverRandom;
-		setupPublicKey(kp.getPublic());
+		setupPublicKey(ekh.getPublic());
 		setupServerHash(serverHash);
-		sign(kp.getPrivate());
+		sign(ekh);
 	}
 
 	public EnigmaLoginRequest(EnigmaNetworkHeader enh,String serverRandom,boolean verify){
@@ -112,9 +112,8 @@ public class EnigmaLoginRequest {
 				.getEncoder()
 				.encodeToString(serverHash);
 	}
-	private void sign(PrivateKey privateKey) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
-		Signature sgn = Signature.getInstance("SHA256withRSA");
-		sgn.initSign(privateKey);
+	private void sign(EnigmaKeyHandler ekh) throws InvalidKeyException, SignatureException, NoSuchAlgorithmException {
+		Signature sgn = ekh.GetSignature();
 		sgn.update(buildSignData());
 
 		signBin = sgn.sign();

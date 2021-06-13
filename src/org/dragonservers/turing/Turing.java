@@ -85,10 +85,10 @@ public class Turing {
             }
             TuringKH = new EnigmaKeyHandler(new File("keys/TuringKeyPair.kpr"),Password,"Turing");
             System.out.println("Running with Public Key:-");
-            String HexPubKeyEnc = Base64.getEncoder().encodeToString( TuringKH.GetPublicKey().getEncoded() );
+            String HexPubKeyEnc = Base64.getEncoder().encodeToString( TuringKH.getPublic().getEncoded() );
             System.out.println(HexPubKeyEnc);
             System.out.println("SHA256:-");
-            System.out.println(Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(TuringKH.GetPublicKey().getEncoded())));
+            System.out.println(Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(TuringKH.getPublic().getEncoded())));
             //loading the code factory and data handling objects
             TuringLogger.log(Level.FINE, "Loading Factories");
             CodeFac = new RegistrationCodeFactory();

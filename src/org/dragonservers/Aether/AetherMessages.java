@@ -28,7 +28,7 @@ public class AetherMessages implements Serializable {
 		chat_log = new HashMap<>();
 	}
 	public byte[] SendMessage(String msg, PrivateKey ppk) throws GeneralSecurityException, IOException {
-		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, Aether.OurKeyHandler.GetPublicKey().getEncoded(), Aether.OurKeyHandler.GetPrivateKey() );
+		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, Aether.OurKeyHandler.getPublic().getEncoded(), Aether.OurKeyHandler.getPrivate() );
 		synchronized (this) {
 			chat_log.put(toSend.send_time, toSend);
 			chat_log_latest.put(toSend.send_time, toSend);
@@ -40,7 +40,7 @@ public class AetherMessages implements Serializable {
 		boolean valid;
 		if(!Arrays.equals(recvd.FromAddr,FriendsPublicKey))
 			throw new IllegalArgumentException("MESSAGE BAD FROM ADDRESS");
-		if(!Arrays.equals(recvd.ToAddr, Aether.OurKeyHandler.GetPublicKey().getEncoded()))
+		if(!Arrays.equals(recvd.ToAddr, Aether.OurKeyHandler.getPublic().getEncoded()))
 			throw new IllegalArgumentException("MESSAGE BAD TO ADDRESS");
 		valid = recvd.verify();
 		if (valid)
@@ -91,7 +91,7 @@ public class AetherMessages implements Serializable {
 		if(Arrays.equals(msg.FromAddr,FriendsPublicKey))
 			Username = FUsername;
 		else if(Arrays.equals(msg.FromAddr,
-				Aether.OurKeyHandler.GetPublicKey().getEncoded()))
+				Aether.OurKeyHandler.getPublic().getEncoded()))
 			Username = Aether.Username;
 
 		return formattedTime + Username + ":" + msg.messageData;

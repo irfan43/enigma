@@ -27,12 +27,12 @@ public class EnigmaRegistrationRequest {
 
 	//Constructors
 	public EnigmaRegistrationRequest(byte[] password,
-									 KeyPair keyPair,
+									 EnigmaKeyHandler ekh,
 									 String username,
 									 String registrationCode,
 									 String randomServer)
 			throws NoSuchAlgorithmException, SignatureException, InvalidKeyException {
-		buildRequest(password,keyPair,username,registrationCode,randomServer);
+		buildRequest(password,ekh,username,registrationCode,randomServer);
 	}
 	public EnigmaRegistrationRequest(EnigmaNetworkHeader enigmaNetworkHeader,String randomServer,boolean verify){
 		randomS = randomServer;
@@ -83,19 +83,19 @@ public class EnigmaRegistrationRequest {
 
 	//			Client Side
 	private void buildRequest(byte[] password,
-							 KeyPair keyPair,
+							 EnigmaKeyHandler ekh,
 							 String username,
 							 String registrationCode,
 							 String randomServer)
 			throws NoSuchAlgorithmException, SignatureException, InvalidKeyException {
 		setupPassword(password);
-		setupPublicKey(keyPair.getPublic());
+		setupPublicKey(ekh.getPublic());
 
 		uname 		= username;
 		randomS 	= randomServer;
 		regCode 	= registrationCode;
 
-		sign(keyPair.getPrivate());
+		sign(ekh);
 	}
 	//load methods
 	private void setupPassword(byte[] pass){
@@ -111,10 +111,9 @@ public class EnigmaRegistrationRequest {
 				.getEncoder()
 				.encodeToString(publicKeyEncoded);
 	}
-	private void sign(PrivateKey privateKey)
+	private void sign(EnigmaKeyHandler ekh)
 			throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {
-		Signature signature = Signature.getInstance("SHA256withRSA");
-		signature.initSign(privateKey);
+		Signature signature = ekh.GetSignature();
 		signature.update(buildSignData());
 
 		signBin = signature.sign();

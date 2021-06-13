@@ -20,5 +20,8 @@ public class Commands {
 	public static final String SearchUsernameKey 			= "search-name";
 	public static final String SearchPublicKeyKey 			= "search-key";
 
+	public static final String ObjectNotFound 				= "NOT_FOUND";
+
+
 
 }

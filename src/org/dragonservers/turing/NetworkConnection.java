@@ -151,7 +151,7 @@ public class NetworkConnection implements Runnable{
 			username = Commands.UsernameKey + ":" +
 					Turing.EUserFac.GetUsername(req.searchPublicKeyB64);
 		}catch (IllegalArgumentException e){
-			username = "DOES_NOT_EXIST";
+			username = Commands.ObjectNotFound;
 		}
 		bw.write("good\n");
 		bw.write( username + "\n\n" );
@@ -165,29 +165,30 @@ public class NetworkConnection implements Runnable{
 					Turing.EUserFac.GetPublicKeyB64(req.searchName);
 		}
 		catch (IllegalArgumentException e){
-			publicKeyB64 = "DOES_NOT_EXIST";
+			publicKeyB64 = Commands.ObjectNotFound;
 		}
 		bw.write("good\n");
 		bw.write(publicKeyB64 + "\n\n");
 	}
 	private void HandleGetHistoryCommand(EnigmaNetworkHeader enh) {
-
+		throw new TuringConnectionException("BAD INOPERABLE");
+		//TODO fix this
 	}
 //Packet Functions
 	private void HandleSendPacketCommand(EnigmaNetworkHeader enh) throws IOException {
-	verifyLoggedIn();
-	byte[] packetEnc = EnigmaBlock.ReadBlock(cis);
-	EnigmaPacket packet;
-	try{
-		packet = new EnigmaPacket(packetEnc);
+		verifyLoggedIn();
+		byte[] packetEnc = EnigmaBlock.ReadBlock(cis);
+		EnigmaPacket packet;
+		try{
+			packet = new EnigmaPacket(packetEnc);
+		}
+		catch (IllegalArgumentException | GeneralSecurityException e){
+			throw new TuringConnectionException("BAD PACKET " );
+		}
+		Turing.EUserFac.SendPacket(packet,publicRSAKeyENC);
+		bw.write("good\n");
+		bw.newLine();
 	}
-	catch (IllegalArgumentException | GeneralSecurityException e){
-		throw new TuringConnectionException("BAD PACKET " );
-	}
-	Turing.EUserFac.SendPacket(packet,publicRSAKeyENC);
-	bw.write("good\n");
-	bw.newLine();
-}
 	private void HandleGetPacketCommand(EnigmaNetworkHeader enh) throws IOException {
 		verifyLoggedIn();
 		Turing.EUserFac.hookPacketListener(publicRSAKeyB64,socket,cis,cos);
@@ -200,12 +201,15 @@ public class NetworkConnection implements Runnable{
 			throw new TuringConnectionException("BAD STATE NOT LOGGED IN");
 	}
 	private EnigmaNetworkHeader readHeader() throws IOException {
-		String line = "a";
 		StringBuilder headerBuffer = new StringBuilder();
-		while (!line.equals("")){
-			line = br.readLine();
-			headerBuffer.append(line).append("\n");
+
+		String line;
+		while ( !(line = br.readLine()).equals("") ){
+			headerBuffer
+					.append(line)
+					.append("\n");
 		}
+
 		return new EnigmaNetworkHeader(headerBuffer.toString());
 	}
 
@@ -230,7 +234,7 @@ public class NetworkConnection implements Runnable{
 			throws IOException{
 		//TODO handle if client is old or incompatible
 		EnigmaBlock.WriteBlockLine("Turing Server V1.2",os);
-		EnigmaBlock.WriteBlock(os,Turing.TuringKH.GetPublicKey().getEncoded());
+		EnigmaBlock.WriteBlock(os,Turing.TuringKH.getPublic().getEncoded());
 		String clientInformation = EnigmaBlock.ReadBlockLine(is);
 	}
 //Handle ECDH Key Exchange

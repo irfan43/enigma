@@ -1,10 +1,10 @@
 package org.dragonservers.enigma;
 
 import java.io.*;
-import java.nio.ByteBuffer;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 
+import static org.dragonservers.enigma.EnigmaBlock.*;
 
 public class EnigmaPacket implements Serializable {
 	private final  PublicKey FromAddr,ToAddr;
@@ -32,20 +32,7 @@ public class EnigmaPacket implements Serializable {
 		Data = new byte[0];
 		signed = false;
 	}
-	private byte[] ReadBlock(InputStream inputStream) throws IllegalArgumentException, IOException {
-		byte[] lenEnc = new byte[4];
-		//TODO throw error if eof
-		inputStream.read(lenEnc);
-		byte[] data = new byte[ByteBuffer
-				.wrap(lenEnc).getInt()];
-		inputStream.read(data);
-		return data;
-	}
-	private void WriteBlock(OutputStream outputStream,byte[] data) throws IOException {
-		outputStream.write(ByteBuffer
-				.allocate(4).putInt(data.length).array());
-		outputStream.write(data);
-	}
+
 	public void update(byte[] data) throws IOException {
 		if(signed)
 			throw new IllegalArgumentException("Updating Signed Packet");
