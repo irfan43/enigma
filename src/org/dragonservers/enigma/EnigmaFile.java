@@ -258,8 +258,6 @@ public class EnigmaFile {
                         AnsPresent[i] = true;
                     }
             }
-
-
         }catch (FileNotFoundException e){
             return "FNF";
         } catch (IOException e) {

@@ -210,7 +210,7 @@ public class AetherFriend implements Serializable {
 
 				String ren = aetherMessages.GetRendered(35);
 				blank_lines_to_Add = lines_msg_rendered - aetherMessages.LastRenderArray.length;
-				AetherCLI.CLS();
+				AetherCLIUtil.CLS();
 				PrintNLines(100 - blank_lines_to_Add);
 				System.out.println("\t== Chat with " + friendsUsername + " ==");
 				PrintNLines( blank_lines_to_Add);
@@ -235,13 +235,13 @@ public class AetherFriend implements Serializable {
 						System.out.println("Keyboard Interrupt");
 						System.exit(-1);
 					}
-					if((keyCode == 127 && !AetherCLI.IsWindows) ||
-							(keyCode == 8 && AetherCLI.IsWindows)){
+					if((keyCode == 127 && !AetherCLIUtil.IsWindows) ||
+							(keyCode == 8 && AetherCLIUtil.IsWindows)){
 						reDraw = true;
 						inputBuffer = inputBuffer.substring(0,inputBuffer.length() - 1);
 					}
-					if( (keyCode == 10 && !AetherCLI.IsWindows) ||
-							(keyCode == 13 && AetherCLI.IsWindows) ) {
+					if( (keyCode == 10 && !AetherCLIUtil.IsWindows) ||
+							(keyCode == 13 && AetherCLIUtil.IsWindows) ) {
 						reDraw = true;
 						//if new line ie enter was sent
 						text = inputBuffer;
@@ -260,7 +260,7 @@ public class AetherFriend implements Serializable {
 						if (ep != null)
 							AetherPacketFactory.QueueOutgoingPacket(ep);
 					}
-					if( (!AetherCLI.IsWindows) && keyCode == 27){
+					if( (!AetherCLIUtil.IsWindows) && keyCode == 27){
 						List<Integer> buff = new ArrayList<>();
 						do{
 							buff.add(keyCode);
