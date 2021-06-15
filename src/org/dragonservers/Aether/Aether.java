@@ -38,24 +38,29 @@ public class Aether {
 
         System.out.println( "Enigma " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
         //Start of Enigma
+        boolean runNormally = true;
         if(args.length != 0){
             //TODO handle any arguments that come up
-            switch (args[0].toLowerCase()){
-                case "--encrypt", "--decrypt","-e","-d" ->
-                        AetherFileEncryptionCLI.Encrypt(args);
-
-                case "--raw-test" ->
-                        consoleRawInputTest();
-
-                case "--help","-h" ->
-                        ArgumentHelp();
-
+            switch (args[0].toLowerCase()) {
+                case "--encrypt", "--decrypt", "-e", "-d" -> {
+                    AetherFileEncryptionCLI.Encrypt(args);
+                    runNormally = false;
+                }
+                case "--raw-test" -> {
+                    AetherCLIUtil.consoleRawInputTest();
+                    runNormally = false;
+                }
+                case "--help", "-h" -> {
+                    ArgumentHelp();
+                    runNormally = false;
+                }
                 default -> {
                     System.out.println("Unknown Argument " + args[0]);
                     ArgumentHelp();
                 }
             }
-        }else {
+        }
+        if(runNormally){
             ServerDomainName = GetServerIP();
             CheckConfigFile();
 
@@ -75,23 +80,6 @@ public class Aether {
 
     }
 
-    private static void consoleRawInputTest() throws IOException {
-        System.out.println("DEBUG TOOL RAW CHAR INPUT" +
-                "\n CTRL + C to Exit ie resp code 3\n");
-        int resp= -1;
-        while (resp != 3){
-            resp = RawConsoleInput.read(false);
-            if(resp >= 0){
-                System.out.println("code:-" +  resp);
-            }
-        }
-        try {
-            RawConsoleInput.resetConsoleMode();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     public static void ArgumentHelp() {
         System.out.println(
                     "\t==Help==\n" +
@@ -108,16 +96,15 @@ public class Aether {
                 InputStreamReader fr = new
                         InputStreamReader(Files.newInputStream(Path.of("Turing_server_ip.dat")));
                 BufferedReader br = new BufferedReader(fr);
-               dnm=br.readLine();
-               br.close();
+                dnm = br.readLine();
+                br.close();
             } else {
-                System.out.println("No Server Ip Avail");
-                System.out.println("Enter Server IP:-");
+                System.out.println("No Server Ip Found\nEnter Server IP:-");
                 dnm = scn.nextLine();
-
-                OutputStreamWriter osw = new
-                        OutputStreamWriter(Files.newOutputStream(Path.of("Turing_server_ip.dat")));
-                BufferedWriter bw = new BufferedWriter(osw);
+                BufferedWriter bw =
+                        new BufferedWriter(
+                                new OutputStreamWriter(
+                                        Files.newOutputStream(Path.of("Turing_server_ip.dat"))));
                 bw.write(dnm);
                 bw.newLine();
                 bw.close();
@@ -191,7 +178,7 @@ public class Aether {
             ServerPbk = turingConnection.GetServerPublicKey();
             byte[] hash = EnigmaCrypto.SHA256(ServerPbk.getEncoded());
             System.out.println("Got Key As :-");
-            System.out.println(AetherCLI.toHexString(ServerPbk.getEncoded()));
+            System.out.println(AetherCLIUtil.toHexString(ServerPbk.getEncoded()));
             System.out.println("SHA-256:-");
             System.out.println(Base64.getEncoder().encodeToString(hash));
             System.out.println("Would you like this Save This Key?(yes/no)");
@@ -387,7 +374,7 @@ public class Aether {
                 "Save This Key? (yes/no)");
 
         String resp = scn.nextLine();
-        AetherCLI.CLS();
+        AetherCLIUtil.CLS();
         System.out.println("Screen Cleared to Hide Keys");
         if(!resp.toLowerCase().startsWith("y")){
             System.out.println("Can Not Run Without KeyPair");
@@ -447,12 +434,12 @@ public class Aether {
             case "NRP" -> System.out.println("No Read Privilege Config File");
 
             case "OK" -> {
-                System.out.println("Loaded Config");
+                System.out.println("Loaded Configurations");
                 return;
             }
         }
         //If we reach here there is either no config file or a bad config file
-        System.out.println("Would you like to Start a Fresh Config File and Registration or exit? (new/exit) ");
+        System.out.println("Would you like to Start a Fresh Config File and Registration or exit? (NEW/exit) ");
         String resp = scn.nextLine();
 
         if(!resp.toLowerCase().startsWith("new")) {

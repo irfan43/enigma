@@ -1,7 +1,6 @@
 package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.EnigmaBlock;
-import org.dragonservers.enigma.EnigmaCrypto;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
@@ -65,38 +64,6 @@ public class AetherFileEncryptionCLI {
 			System.exit(0);
 		}
 	}
-	private static byte[] getPasswordHash(){
-		char[] pass = AetherCLI.getPassword(System.console());
-		byte[] hash = new byte[0];
-		try {
-			hash = EnigmaCrypto.SHA256(pass);
-		} catch (NoSuchAlgorithmException e) {
-			System.out.println("your JVM does not support SHA256 Algo");
-			e.printStackTrace();
-			System.exit(0);
-		}
-		Arrays.fill(pass,'\0');
-		return hash;
-	}
-	private static byte[] confirmPassword(){
-		byte[] hash;
-		byte[] confirmHash;
-		boolean wrong = false;
-		do {
-			AetherCLI.CLS();
-			if(wrong){
-				System.out.println("Passwords did not Match");
-			}
-			System.out.print("Password :-");
-			hash = getPasswordHash();
-			System.out.print("Confirm  :-");
-			confirmHash = getPasswordHash();
-			wrong = true;
-		}while (!Arrays.equals(hash,confirmHash));
-
-		Arrays.fill(confirmHash,(byte)0x00);
-		return hash;
-	}
 
 	private static void decryptFile(Path target) {
 		SecretKeySpec secretKey = GetSecretKey(false);
@@ -152,7 +119,8 @@ public class AetherFileEncryptionCLI {
 		byte[] sha = md.digest();
 		byte[] readSha = new byte[32];
 
-		int resp = is.read(readSha);
+		int resp = is.read(readSha);//BUG reads only some bytes since remaining
+									// bytes are not present yet in buffer maybe? try reading again
 
 		System.out.println("Resp = " + resp);
 
@@ -244,10 +212,10 @@ public class AetherFileEncryptionCLI {
 	private static SecretKeySpec GetSecretKey(boolean confirmPassword){
 		byte[] hash;
 		if(confirmPassword){
-			hash = confirmPassword();
+			hash = AetherCLIUtil.confirmPassword();
 		} else {
 			System.out.println("Password:-");
-			hash = getPasswordHash();
+			hash = AetherCLIUtil.getPasswordHash();
 		}
 		return new SecretKeySpec(hash, 0, 16, "AES");
 	}
@@ -327,7 +295,7 @@ public class AetherFileEncryptionCLI {
 					progressbar.append((i < parts)? '#' : ' ');
 				}
 				progressbar.append(']');
-				AetherCLI.CLS();
+				AetherCLIUtil.CLS();
 				System.out.println("%" + percentage + "\t" + GetHumanSize(pos) + humanFileSize );
 				System.out.println(progressbar);
 				//TODO add speed and progress bar
