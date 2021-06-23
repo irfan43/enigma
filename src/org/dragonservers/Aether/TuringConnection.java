@@ -35,7 +35,7 @@ public class TuringConnection implements Runnable{
 								randomClient;
 
 	//Encryption Variables
-	private PublicKey			serverRSAPublicKey;
+	public	PublicKey			serverRSAPublicKey;
 	private PublicKey			serverECDHPublicKey;
 	private byte[] 				sharedSecret;
 	private SecretKeySpec 		secretKey;
@@ -67,13 +67,13 @@ public class TuringConnection implements Runnable{
 	}
 
 
-	public void Register(byte[] serverHash,String username,String regCode)
+	public void Register(byte[] serverHash,String regCode)
 			throws NoSuchAlgorithmException, SignatureException, InvalidKeyException, IOException {
 		verifyLoggedOut();
 		EnigmaRegistrationRequest err = new EnigmaRegistrationRequest(
 				serverHash,
 				Aether.OurKeyHandler,
-				username,
+				Aether.Username,
 				regCode,
 				randomServer);
 
@@ -220,7 +220,7 @@ public class TuringConnection implements Runnable{
 	private void introduceServer (InputStream is, OutputStream os)
 			throws IOException, GeneralSecurityException {
 		getServerInfo				( is, os);
-		handleECDHExchange( is, os);
+		handleECDHExchange			( is, os);
 		generateStreamsAndRandoms	( is, os);
 
 	}
@@ -230,8 +230,7 @@ public class TuringConnection implements Runnable{
 		EnigmaBlock.WriteBlockLine(Aether.EnigmaVersion, os);
 
 		serverVersion 		= EnigmaBlock.ReadBlockLine(is);
-		serverRSAPublicKey 	= EnigmaKeyHandler
-				.RSAPublicKeyFromEnc(EnigmaBlock.ReadBlock(is));
+		serverRSAPublicKey 	= EnigmaKeyHandler.RSAPublicKeyFromEnc(EnigmaBlock.ReadBlock(is));
 	}
 
 	private void handleECDHExchange(InputStream is, OutputStream os)
@@ -256,17 +255,17 @@ public class TuringConnection implements Runnable{
 		initializeStreams	(  is, os);
 		initializeRandoms	(  is, os);
 	}
-	private void initializeStreams (InputStream is, OutputStream os){
-		cis 	= new CipherInputStream		(is, inboundCipher);
-		cos 	= new CipherOutputStream	(os, outboundCipher);
-		br 		= new BufferedReader		(new InputStreamReader(cis));
-		bw 		= new BufferedWriter		(new OutputStreamWriter(cos));
-	}
 	private void createSecretKey (InputStream is, OutputStream os)
 			throws GeneralSecurityException, IOException {
 		secretKey 		= new SecretKeySpec(sharedSecret, 0, 16, "AES");
 		outboundCipher	= EnigmaECDH.makeOutboundCipher	(os, secretKey);
 		inboundCipher 	= EnigmaECDH.makeInboundCipher	(is, secretKey);
+	}
+	private void initializeStreams (InputStream is, OutputStream os){
+		cis 	= new CipherInputStream		(is, inboundCipher);
+		cos 	= new CipherOutputStream	(os, outboundCipher);
+		br 		= new BufferedReader		(new InputStreamReader(cis));
+		bw 		= new BufferedWriter		(new OutputStreamWriter(cos));
 	}
 	private void initializeRandoms (InputStream is, OutputStream os)
 			throws IOException, GeneralSecurityException {

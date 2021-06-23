@@ -47,12 +47,17 @@ public class AetherCLIUtil {
 		buf.append(hexChars[low]);
 	}
 
-	static void consoleRawInputTest() throws IOException {
+	static void consoleRawInputTest(){
 		System.out.println("DEBUG TOOL RAW CHAR INPUT" +
 				"\n CTRL + C to Exit ie resp code 3\n");
 		int resp= -1;
 		while (resp != 3){
-			resp = RawConsoleInput.read(false);
+			try {
+				resp = RawConsoleInput.read(false);
+			} catch (IOException e) {
+				System.out.println("Error while reading from raw");
+				e.printStackTrace();
+			}
 			if(resp >= 0){
 				System.out.println("code:-" +  resp);
 			}
@@ -78,6 +83,10 @@ public class AetherCLIUtil {
 		return hash;
 	}
 
+	public static byte[] singlePassword(){
+		System.out.print("Password :-");
+		return getPasswordHash();
+	}
 	public static byte[] confirmPassword(){
 		byte[] hash;
 		byte[] confirmHash;
@@ -87,14 +96,24 @@ public class AetherCLIUtil {
 			if(wrong){
 				System.out.println("Passwords did not Match");
 			}
-			System.out.print("Password :-");
-			hash = getPasswordHash();
-			System.out.print("Confirm  :-");
-			confirmHash = getPasswordHash();
+			hash = singlePassword();
+			System.out.print("Confirm");
+			confirmHash = singlePassword();
 			wrong = true;
 		}while (!Arrays.equals(hash,confirmHash));
 
 		Arrays.fill(confirmHash,(byte)0x00);
 		return hash;
+	}
+
+	public static String SoftWrap(String input, int wall){
+		StringBuilder sb = new StringBuilder();
+		while (input.length() > wall) {
+			sb.append(input, 0, wall);
+			sb.append("\n");
+			input = input.substring(wall);
+		}
+		sb.append(input);
+		return sb.toString();
 	}
 }

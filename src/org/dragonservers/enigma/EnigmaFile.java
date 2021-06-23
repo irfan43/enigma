@@ -144,7 +144,7 @@ public class EnigmaFile {
 
     }
     //TODO update this to use EnigmaKeyHandler
-    public static void saveSignedPublicKey(Path file, PublicKey pbk, boolean Overwrite,  PrivateKey privateKey)
+    public static void saveSignedPublicKey(Path file, PublicKey pbk, boolean Overwrite,  EnigmaKeyHandler pk)
             throws GeneralSecurityException, IOException {
         if(!Overwrite && Files.exists(file))
             throw new IOException("File Already Exists");
@@ -155,8 +155,7 @@ public class EnigmaFile {
         bos.write(PublicKeySignedSignature);
         writeBlock(bos,pbkEnc);
 
-        Signature sgn = Signature.getInstance("SHA256withRSA");
-        sgn.initSign(privateKey );
+        Signature sgn = pk.GetSignature();
         sgn.update(pbkEnc);
         writeBlock(bos,sgn.sign());
         bos.close();
