@@ -2,6 +2,7 @@ package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.EnigmaCrypto;
 
+import java.io.Console;
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -70,7 +71,7 @@ public class AetherCLIUtil {
 	}
 
 	public static byte[] getPasswordHash(){
-		char[] pass = AetherCLI.getPassword(System.console());
+		char[] pass = getPassword(System.console());
 		byte[] hash = new byte[0];
 		try {
 			hash = EnigmaCrypto.SHA256(pass);
@@ -115,5 +116,16 @@ public class AetherCLIUtil {
 		}
 		sb.append(input);
 		return sb.toString();
+	}
+
+	public static char[] getPassword(Console con){
+		char[] Pass;
+		if(con != null) {
+			Pass = con.readPassword();
+		}else{
+			String s = Aether.scn.nextLine();
+			Pass = s.toCharArray();
+		}
+		return Pass;
 	}
 }

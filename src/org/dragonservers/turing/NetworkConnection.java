@@ -88,16 +88,16 @@ public class NetworkConnection implements Runnable{
 	private void HandleCommand(String command, EnigmaNetworkHeader enh) throws IOException{
 		switch (command) {
 			//Account Commands
-			case Commands.RegistrationCommand -> 		HandleRegistration(enh);
-			case Commands.LoginCommand -> 				HandleLogin(enh);
-			case Commands.LogoutCommand -> 				HandleLogoutCommand(enh);
+			case Commands.RegistrationCommand 			-> HandleRegistration(enh);
+			case Commands.LoginCommand 					-> HandleLogin(enh);
+			case Commands.LogoutCommand 				-> HandleLogoutCommand(enh);
 			//Account Search
-			case Commands.GetHistoryCommand -> 			HandleGetHistoryCommand(enh);
-			case Commands.GetUserPublicKeyCommand -> 	HandleGetPublicKeyCommand(enh);
-			case Commands.GetUsernameCommand -> 		HandleGetUsernameCommand(enh);
+			case Commands.GetHistoryCommand 			-> HandleGetHistoryCommand(enh);
+			case Commands.GetUserPublicKeyCommand 		-> HandleGetPublicKeyCommand(enh);
+			case Commands.GetUsernameCommand 			-> HandleGetUsernameCommand(enh);
 			//Packet Commands
-			case Commands.GetPacketCommand -> 			HandleGetPacketCommand(enh);
-			case Commands.SendPacketCommand ->			HandleSendPacketCommand(enh);
+			case Commands.GetPacketCommand 				-> HandleGetPacketCommand(enh);
+			case Commands.SendPacketCommand 			-> HandleSendPacketCommand(enh);
 			default -> SendBadCommand();
 		}
 	}
@@ -105,7 +105,8 @@ public class NetworkConnection implements Runnable{
 		bw.write("BAD COMMAND\n\n");
 	}
 
-//Registration Commands
+
+	//Registration Commands
 	private void HandleRegistration(EnigmaNetworkHeader enh) throws IOException {
 		if(logged_in)
 			throw new TuringConnectionException("Already Logged In");
@@ -125,7 +126,8 @@ public class NetworkConnection implements Runnable{
 		}
 		bw.write("good\n\n");
 	}
-//State Commands
+
+	//State Commands
 	private void HandleLogin(EnigmaNetworkHeader enh) {
 		if(logged_in)
 			throw new TuringConnectionException("Already Logged In");
@@ -142,7 +144,8 @@ public class NetworkConnection implements Runnable{
 		bw.write("goodbye\n\n");
 		if(!socket.isClosed())socket.close();
 	}
-//Database Search Commands
+
+	//Database Search Commands
 	private void HandleGetUsernameCommand(EnigmaNetworkHeader enh) throws IOException {
 		verifyLoggedIn();
 		EnigmaNameRequest req = new EnigmaNameRequest(enh,randomServer,clientRSAKey);
@@ -174,7 +177,8 @@ public class NetworkConnection implements Runnable{
 		throw new TuringConnectionException("BAD INOPERABLE");
 		//TODO fix this
 	}
-//Packet Functions
+
+	//Packet Functions
 	private void HandleSendPacketCommand(EnigmaNetworkHeader enh) throws IOException {
 		verifyLoggedIn();
 		byte[] packetEnc = EnigmaBlock.ReadBlock(cis);
@@ -195,7 +199,8 @@ public class NetworkConnection implements Runnable{
 		listeningPacket = true;
 	}
 
-//util methods
+
+	//util methods
 	private void verifyLoggedIn(){
 		if(!logged_in)
 			throw new TuringConnectionException("BAD STATE NOT LOGGED IN");
@@ -213,13 +218,14 @@ public class NetworkConnection implements Runnable{
 		return new EnigmaNetworkHeader(headerBuffer.toString());
 	}
 
+	//setup new connection
 	/**
 	 * Initializes incoming clients connection
 	 * ECDH key exchange
 	 * @param is socket input Stream
 	 * @param os socket output Stream
-	 * @throws IOException
-	 * @throws GeneralSecurityException
+	 * @throws IOException if a IOException occurs while Initialisation
+	 * @throws GeneralSecurityException if there is a security exception or a issues
 	 */
 	private void InitializeClient(InputStream is, OutputStream os)
 			throws IOException,GeneralSecurityException {
@@ -237,7 +243,8 @@ public class NetworkConnection implements Runnable{
 		EnigmaBlock.WriteBlock(os,Turing.TuringKH.getPublic().getEncoded());
 		String clientInformation = EnigmaBlock.ReadBlockLine(is);
 	}
-//Handle ECDH Key Exchange
+
+	//Handle ECDH Key Exchange
 	private void HandleECDHExchange(InputStream dis, OutputStream dos)
 			throws IOException, GeneralSecurityException {
 		//TODO have some interface to send available curves for client to select
@@ -258,7 +265,8 @@ public class NetworkConnection implements Runnable{
 				.publicECDHKeyFromEncoded(
 						EnigmaBlock.ReadBlock(is));
 	}
-//Create Key and Streams
+
+	//Create Key and Streams
 	private void CreateSecretKey(InputStream is, OutputStream os)
 			throws IOException, GeneralSecurityException {
 		secretKey = new SecretKeySpec(sharedSecret, 0, 16, "AES");

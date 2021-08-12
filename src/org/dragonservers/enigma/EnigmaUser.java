@@ -83,17 +83,21 @@ public class EnigmaUser implements Serializable {
         return md.digest();
     }
     public static byte[] GeneratePrimaryHash(char[] pass,String username) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        md.update(("Enigma_Turing_" + username + "_").getBytes(StandardCharsets.UTF_8));
-
         byte[] bin = new byte[pass.length];
         for (int i = 0; i < bin.length; i++) {
             bin[i] = (byte) pass[i];
             pass[i] = '\0';
         }
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
         md.update(bin);
+        return GeneratePrimaryHash(md.digest(),username);
+    }
+    public static byte[] GeneratePrimaryHash(byte[] Hash,String username) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(("Enigma_Turing_" + username + "_").getBytes(StandardCharsets.UTF_8));
 
-        Arrays.fill(bin,(byte)0);
+        md.update(Hash);
+        Arrays.fill(Hash,(byte)0);
 
         md.update(("_" + username + "_Turing_Enigma").getBytes(StandardCharsets.UTF_8));
         return md.digest();

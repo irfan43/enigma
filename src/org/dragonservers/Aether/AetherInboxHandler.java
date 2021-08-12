@@ -12,8 +12,18 @@ public class AetherInboxHandler implements Runnable{
 
 	@Override
 	public void run() {
+
 		int errors = 0;
-		while (keep_Running){
+		while (keep_Running) {
+			try {
+				TuringConnection packetReader =
+						new TuringConnection(Aether.ServerDomainName, Aether.ServerPort);
+				packetReader.Login(Aether.Username,Aether.PrimaryHash);
+			} catch (IOException | GeneralSecurityException e) {
+				e.printStackTrace();
+			}
+		}
+			/*
 			EnigmaPacket ep = null;
 			do {
 				try {
@@ -60,5 +70,7 @@ public class AetherInboxHandler implements Runnable{
 		}
 		if(errors > 5)
 			System.exit(-1);
+
+		 */
 	}
 }

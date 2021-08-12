@@ -20,7 +20,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Random;
 
-public class TuringConnection implements Runnable{
+public class TuringConnection {
 
 	//Networking Variables
 	private Socket 				sock;
@@ -31,6 +31,7 @@ public class TuringConnection implements Runnable{
 
 	//Session Variables
 	private boolean 			LoggedIn = false;
+	private boolean				HookedListener = false;
 	private String				randomServer,
 								randomClient;
 
@@ -66,6 +67,12 @@ public class TuringConnection implements Runnable{
 		introduceServer(is,os);
 	}
 
+	public void HookPacketListener() throws IOException {
+		verifySafeCmdExc();
+		String resp = ExecuteServerCommand(Commands.GetPacketCommand,"");
+		verifyGoodResponse(resp);
+
+	}
 
 	public void Register(byte[] serverHash,String regCode)
 			throws NoSuchAlgorithmException, SignatureException, InvalidKeyException, IOException {
@@ -83,6 +90,7 @@ public class TuringConnection implements Runnable{
 		}
 		verifyGoodResponse(resp);
 	}
+
 	public void Login(String username,byte[] serverHash)
 			throws IOException, SignatureException, NoSuchAlgorithmException, InvalidKeyException {
 
@@ -104,19 +112,21 @@ public class TuringConnection implements Runnable{
 		}
 		verifyGoodResponse(resp);
 		LoggedIn = true;
+
 	}
 	public void LogOut() throws IOException {
+		verifySafeCmdExc();
 		try {
 			String resp = ExecuteServerCommand(Commands.LogoutCommand,"");
-		}
-		catch (SocketException ignored){}
+		}catch (SocketException ignored){}
 		finally {
 			sock.close();
 		}
 	}
+
 	public byte[] GetPublicKey(String searchUsername)
 			throws IOException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
-		verifyLoggedIn();
+		verifySafeCmdExc();
 
 		EnigmaKeyRequest ekr = new EnigmaKeyRequest(
 				searchUsername,
@@ -135,7 +145,7 @@ public class TuringConnection implements Runnable{
 	}
 	public String GetUsername(PublicKey searchPublicKey)
 			throws SignatureException, NoSuchAlgorithmException, InvalidKeyException, IOException{
-		verifyLoggedIn();
+		verifySafeCmdExc();
 
 		EnigmaNameRequest enr = new EnigmaNameRequest(
 				searchPublicKey.getEncoded(),
@@ -152,7 +162,7 @@ public class TuringConnection implements Runnable{
 		return decodeUsername(resp);
 	}
 	public void	SendPacket(EnigmaPacket enigmaPacket) throws IOException {
-		verifyLoggedIn();
+		verifySafeCmdExc();
 
 		byte[] bin = enigmaPacket.EncodedBinary;
 
@@ -165,6 +175,7 @@ public class TuringConnection implements Runnable{
 		verifyGoodResponse(resp);
 	}
 
+	//util functions
 	private void verifyGoodResponse(String response){
 		if(!response
 				.toLowerCase()
@@ -176,9 +187,21 @@ public class TuringConnection implements Runnable{
 		if(LoggedIn)
 			throw new IllegalArgumentException("ILLEGAL STATE Already Logged In");
 	}
+	private void verifySafeCmdExc(){
+		verifyLoggedIn();
+		verifyNotHooked();
+	}
 	private void verifyLoggedIn(){
 		if(!LoggedIn)
 			throw new IllegalArgumentException("ILLEGAL STATE Command Requires Login");
+	}
+	private void verifyHooked(){
+		if(!HookedListener)
+			throw new IllegalArgumentException("ILLEGAL STATE Connection not hooked");
+	}
+	private void verifyNotHooked(){
+		if(HookedListener)
+			throw new IllegalArgumentException("ILLEGAL STATE Connection already hooked");
 	}
 	private byte[] decodePublicKey(String response){
 		try{
@@ -224,7 +247,6 @@ public class TuringConnection implements Runnable{
 		generateStreamsAndRandoms	( is, os);
 
 	}
-
 	private void getServerInfo (InputStream is, OutputStream os)
 			throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 		EnigmaBlock.WriteBlockLine(Aether.EnigmaVersion, os);
@@ -332,19 +354,15 @@ public class TuringConnection implements Runnable{
 			throw new GeneralSecurityException("BAD SERVER SIGN");
 	}
 
-	@Override
-	public void run(){
-
-	}
-
-
-	public PublicKey GetServerPublicKey(){
+	public PublicKey 	GetServerPublicKey(){
 		return serverRSAPublicKey;
 	}
-	public String GetServerVersion() {
+	public String 		GetServerVersion() {
 		return serverVersion;
 	}
-	public boolean isLoggedIn() {
+	public boolean 		isLoggedIn() {
 		return LoggedIn;
 	}
+
+
 }

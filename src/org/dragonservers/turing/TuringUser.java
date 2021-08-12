@@ -37,6 +37,8 @@ public class TuringUser extends EnigmaUser implements Serializable{
 			os 		= outputStream;
 			br		= new BufferedReader(new InputStreamReader(is));
 			bw 		= new BufferedWriter(new OutputStreamWriter(os));
+
+			bw.write("GOOD HOOK\n\n");
 		}
 
 		if(pullInbox())sock.close();
@@ -93,6 +95,7 @@ public class TuringUser extends EnigmaUser implements Serializable{
 			} catch (IOException e) {
 				//TODO add logger log
 			}
+			sock = null;
 		}
 	}
 	private void verifyPacket(EnigmaPacket enigmaPacket){

@@ -27,13 +27,12 @@ public class AetherFileEncryptionCLI {
 	 * TODO add output option
 	 * TODO Add file partitioning (cut a large file into smaller files and later recombine them)
 	 * TODO clean code
-	 * TODO fix sha256 bug on decryption
 	 */
 	public static final byte[] EncryptedFileSignature = "AETHER ENC FILE\n".getBytes(StandardCharsets.UTF_8);
 
 	public static void Encrypt(String[] args) {
 		if (args.length < 2){
-			System.out.println("Specify File name");
+			System.out.println("Not Specified File name");
 			Aether.ArgumentHelp();
 		}else{
 
@@ -111,18 +110,27 @@ public class AetherFileEncryptionCLI {
 				if(os != null)
 					os.close();
 			}catch (Exception e){
-				System.out.println("Exception while Closing Files");
+				System.out.println("Exception while Closing File Handler");
 			}
 		}
 	}
+	private static byte[] readNBytes(InputStream is, int n) throws IOException {
+		int pos = 0;
+		int left = n;
+		byte[] output = new byte[n];
+		while(left > 0) {
+			byte[] tmp = new byte[left];
+			int len = is.read(tmp);
+			if(len == -1)throw new IOException();
+			System.arraycopy(tmp,0,output,pos,len);
+			pos += len;
+			left -= len;
+		}
+		return output;
+	}
 	private static void verifySHA(MessageDigest md,InputStream is) throws IOException {
 		byte[] sha = md.digest();
-		byte[] readSha = new byte[32];
-
-		int resp = is.read(readSha);//BUG reads only some bytes since remaining
-									// bytes are not present yet in buffer maybe? try reading again
-
-		System.out.println("Resp = " + resp);
+		byte[] readSha = readNBytes(is,32);
 
 		if(Arrays.equals(sha,readSha)){
 			System.out.println("Good SHA256 hash\n" +

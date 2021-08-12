@@ -100,7 +100,7 @@ public class AetherCLI {
 			String username = Aether.scn.nextLine().toLowerCase(Locale.ROOT);
 			PublicKey publicKey = null;
 			try {
-				publicKey = Aether.turingConnection.GetUserPublicKey(username);
+				publicKey = EnigmaKeyHandler.RSAPublicKeyFromEnc( Aether.turingConnection.GetPublicKey(username) );
 			}catch (Exception e){
 				System.out.println("Error While Trying to get Public Key From the Server");
 				e.getMessage();
@@ -259,7 +259,7 @@ public class AetherCLI {
 
 	private static void LogIn() throws IOException, GeneralSecurityException {
 		System.out.println("Logging in....");
-		Aether.turingConnection.LogIn();
+		Aether.turingConnection.Login(Aether.Username,EnigmaUser.GenerateServerHash( Aether.PrimaryHash) ) ;
 		System.out.println("Logged IN");
 
 
@@ -282,14 +282,4 @@ public class AetherCLI {
 		}
 	}
 
-	public static char[] getPassword(Console con){
-		char[] Pass;
-		if(con != null) {
-			Pass = con.readPassword();
-		}else{
-			String s = Aether.scn.nextLine();
-			Pass = s.toCharArray();
-		}
-		return Pass;
-	}
 }

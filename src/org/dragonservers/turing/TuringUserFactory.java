@@ -153,7 +153,11 @@ public class TuringUserFactory {
 		}
 		return pbk;
 	}
-	public void hookPacketListener(String publicKey, Socket socket, InputStream inputStream, OutputStream outputStream) throws IOException {
+	public void hookPacketListener(
+			String publicKey,
+			Socket socket,
+			InputStream inputStream,
+			OutputStream outputStream) throws IOException {
 		TuringUser turingUser;
 		synchronized (lockObject){
 			turingUser = PublicKeyMap.get(publicKey);
