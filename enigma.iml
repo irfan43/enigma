@@ -17,5 +17,6 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="jna-5.8.0" level="application" />
+    <orderEntry type="library" name="jna-jpms-5.9.0" level="application" />
   </component>
 </module>

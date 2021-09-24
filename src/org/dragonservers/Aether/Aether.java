@@ -39,9 +39,9 @@ public class Aether {
     public          static SecretKey        AESEncryptionKey;
     public          static boolean          New_Config_File         = false;
     //TODO handle a quick fresh install
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
 
-        System.out.println( ClientName + " " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
+        System.out.println( ClientName + " " + EnigmaVersion + "\nMade By Indus, Kitten, Highground Master");
         //Start of Enigma
         /*
             TODO

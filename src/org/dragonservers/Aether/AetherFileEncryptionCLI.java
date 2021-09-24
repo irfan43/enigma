@@ -23,12 +23,13 @@ public class AetherFileEncryptionCLI {
 	 * TODO add options for folders
 	 * TODO add options for different AES modes
 	 * TODO add options for multiple files
-	 * TODO add encrypt option
+	 * TODO add options for zip
 	 * TODO add output option
 	 * TODO Add file partitioning (cut a large file into smaller files and later recombine them)
 	 * TODO clean code
 	 */
 	public static final byte[] EncryptedFileSignature = "AETHER ENC FILE\n".getBytes(StandardCharsets.UTF_8);
+
 
 	public static void Encrypt(String[] args) {
 		if (args.length < 2){
@@ -85,7 +86,7 @@ public class AetherFileEncryptionCLI {
 			long fileSize = ByteBuffer
 					.wrap(EnigmaBlock.ReadBlock(cis))
 					.getLong();
-			System.out.println("Got File Size as " + fileSize);
+
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 
 			CopyStream(cis,os,md,fileSize);
@@ -148,6 +149,7 @@ public class AetherFileEncryptionCLI {
 				outputFile.contains("/")
 		)
 			throw new IllegalArgumentException("BAD FILE NAME escaping directory Attack detected");
+
 	}
 	private static void encryptFile(Path target,Path output) {
 		SecretKeySpec secretKey = GetSecretKey(true);
@@ -225,7 +227,7 @@ public class AetherFileEncryptionCLI {
 			System.out.println("Password:-");
 			hash = AetherCLIUtil.getPasswordHash();
 		}
-		return new SecretKeySpec(hash, 0, 16, "AES");
+		return new SecretKeySpec(hash, 0, 32, "AES");
 	}
 
 	private static Cipher GetCipher(SecretKeySpec secretKey) {
@@ -311,6 +313,7 @@ public class AetherFileEncryptionCLI {
 		}
 	}
 
+	//Human readable file size. DOES NOT RETURN SIZE OF HUMAN
 	public static String GetHumanSize(long fileSize) {
 		String[] units = {"kb","mb","gb","tb","pb"};
 		double radix = 1024;
