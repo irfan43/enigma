@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.EnigmaTime;
 
@@ -10,7 +10,7 @@ import java.security.PublicKey;
 import java.util.*;
 
 
-public class EnigmaMessages implements Serializable {
+public class AetherMessages implements Serializable {
 
 
 	private transient String LastRender;
@@ -21,14 +21,14 @@ public class EnigmaMessages implements Serializable {
 	private final HashMap<Long, TextMessage> chat_log_latest;
 
 //TODO add group message option
-	public EnigmaMessages(String friendsUsername, PublicKey friendsPublicKey) {
+	public AetherMessages(String friendsUsername, PublicKey friendsPublicKey) {
 		FUsername = friendsUsername;
 		FriendsPublicKey = friendsPublicKey.getEncoded();
 		chat_log_latest = new HashMap<>();
 		chat_log = new HashMap<>();
 	}
 	public byte[] SendMessage(String msg, PrivateKey ppk) throws GeneralSecurityException, IOException {
-		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded(), EnigmaClient.OurKeyHandler.GetPrivateKey() );
+		TextMessage toSend = new TextMessage( msg,FriendsPublicKey, Aether.OurKeyHandler.getPublic().getEncoded(), Aether.OurKeyHandler.getPrivate() );
 		synchronized (this) {
 			chat_log.put(toSend.send_time, toSend);
 			chat_log_latest.put(toSend.send_time, toSend);
@@ -40,7 +40,7 @@ public class EnigmaMessages implements Serializable {
 		boolean valid;
 		if(!Arrays.equals(recvd.FromAddr,FriendsPublicKey))
 			throw new IllegalArgumentException("MESSAGE BAD FROM ADDRESS");
-		if(!Arrays.equals(recvd.ToAddr, EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()))
+		if(!Arrays.equals(recvd.ToAddr, Aether.OurKeyHandler.getPublic().getEncoded()))
 			throw new IllegalArgumentException("MESSAGE BAD TO ADDRESS");
 		valid = recvd.verify();
 		if (valid)
@@ -91,15 +91,15 @@ public class EnigmaMessages implements Serializable {
 		if(Arrays.equals(msg.FromAddr,FriendsPublicKey))
 			Username = FUsername;
 		else if(Arrays.equals(msg.FromAddr,
-				EnigmaClient.OurKeyHandler.GetPublicKey().getEncoded()))
-			Username = EnigmaClient.Username;
+				Aether.OurKeyHandler.getPublic().getEncoded()))
+			Username = Aether.Username;
 
 		return formattedTime + Username + ":" + msg.messageData;
 	}
 	private List<TextMessage> Get_latest(int n){
 
-		if(n > EnigmaFriendManager.Message_Latest_cache)
-			n = EnigmaFriendManager.Message_Latest_cache;
+		if(n > AetherFriendManager.Message_Latest_cache)
+			n = AetherFriendManager.Message_Latest_cache;
 
 		List<TextMessage> rtr = new ArrayList<>();
 		synchronized (this) {
@@ -107,7 +107,7 @@ public class EnigmaMessages implements Serializable {
 			chat_log_latest.keySet().toArray(s);
 			Arrays.sort(s);
 			//purge from latest
-			int to_purge = s.length - EnigmaFriendManager.Message_Latest_cache;
+			int to_purge = s.length - AetherFriendManager.Message_Latest_cache;
 			for (int i = 0; i < (to_purge); i++) {
 				chat_log_latest.remove(s[i]);
 			}

@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 
 import org.dragonservers.enigma.*;
@@ -7,144 +7,214 @@ import javax.crypto.KeyGenerator;
 
 import javax.crypto.SecretKey;
 import java.io.*;
-import java.net.ConnectException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.*;
 import java.security.spec.InvalidKeySpecException;
 import java.util.*;
 
-public class EnigmaClient {
+public class Aether {
     public static Scanner scn = new Scanner(System.in);
 
     // Interface Objects
-    public static EnigmaKeyHandler OurKeyHandler;
-    public static EnigmaServerConnection TuringConnection;
-    public static PublicKey ServerPublicKey;
+    public          static EnigmaKeyHandler     OurKeyHandler;
+    public          static TuringConnection     turingConnection;
+    public          static PublicKey            ServerPublicKey;
 
     //State Variables
-    public static byte[] EncryptionPassword,LoginPassword;
-    public static boolean Registered = false,KeypairGenerated= false;
-    public static String Username;
+    public          static byte[]           EncryptionPassword;
+    public          static byte[]          PrimaryHash;
+    public          static byte[]           ServerHash;
+    public          static boolean          Registered              = false;
+    public          static boolean          KeypairGenerated        = false;
+    public          static String           Username;
     //These Variables are configuration
-    public final static String ConfigFileName = "Enigma.conf",KeyPairFile = "keys/Keypair.kpr";
-    public final static String ServerPublicKeyFile = "keys/Server.pbk";
-    public static String ServerDomainName;
-    public final static int ServerPort = 21947;
-    public final static String EnigmaVersion = "1.00";
-    public static SecretKey AESEncryptionKey;
+    public final    static String           ConfigFileName          = "Enigma.conf";
+    public final    static String           KeyPairFile             = "keys/Keypair.kpr";
+    public final    static Path             ServerPublicKeyFile     = Path.of("keys/Server.pbk");
+    public final    static int              ServerPort              = 21947;
+    public final    static String           EnigmaVersion           = "Alpha1.2";
+    public final    static String           ClientName              = "Aether";
+    public          static String           ServerDomainName;
+    public          static SecretKey        AESEncryptionKey;
+    public          static boolean          New_Config_File         = false;
     //TODO handle a quick fresh install
-    public static void main(String[] args) throws IOException {
-//        int resp= -1;
-//        while (resp != 1){
-//            resp = RawConsoleInput.read(false);
-//            if(resp >= 0){
-//                System.out.println("code " +  resp);
-//            }
-//        }
-//        System.exit(-1);
-//        RawConsoleInput.resetConsoleMode();
-        System.out.println( "Enigma " + EnigmaVersion + "\nMade By Indus, Kitten,HM");
+    public static void main(String[] args) {
+
+        System.out.println( ClientName + " " + EnigmaVersion + "\nMade By Indus, Kitten, Highground Master");
         //Start of Enigma
+        /*
+            TODO
+            - add command line arguments for the server port
+            - add upgradation/migration system
+         */
+        if(HandleArgs(args)){
+            /*
+              process for boot up
+                   -load config
+                        -get username
+                        -ASK password login
+                        -ASK password encryption
 
-        if(args.length != 0){
-            //TODO handle any arguments that come up
-            System.out.println("Command Line Arguments Not Yet supported ");
+                   -get keypair
+                   -get server public key
+                   
+
+             */
+            LoadConfigData();
+            GetLoginDetails();
+            //TODO update this to run properly with the Engima FIle API
+            //      currently Enigma FIle class is importing aether
+
+
+            //We have a config File Password and KeyPair
+
+            VerifyServerPublicKey();
+            CheckRegistration();
+            AetherCLI.MainMenu();
         }
-        ServerDomainName = GetServerIP();
-        CheckConfigFile();
-
-        System.out.println("Enter Encryption Password:-");
-        EncryptionPassword = GetPasswordFromUser();
-        MakeSecret();
-        CheckKeyPair();
-        //We have a config File Password and KeyPair
-        TuringConnection = new EnigmaServerConnection(ServerDomainName, ServerPort);
-        CheckRegistration();
-        EnigmaCLI.MainMenu();
-
 
     }
 
+    //functions to help with handling command line arguments
+
+    public static boolean HandleArgs(String[] args) {
+        boolean runNormally = true;
+        if(args.length != 0){
+            //TODO handle any arguments that come up
+            switch (args[0].toLowerCase()) {
+                case "--encrypt", "--decrypt", "-e", "-d" -> {
+                    AetherFileEncryptionCLI.Encrypt(args);
+                    runNormally = false;
+                }
+                case "--raw-test" -> {
+                    AetherCLIUtil.consoleRawInputTest();
+                    runNormally = false;
+                }
+                case "--help", "-h" -> {
+                    ArgumentHelp();
+                    runNormally = false;
+                }
+                default -> {
+                    System.out.println("Unknown Argument " + args[0]);
+                    ArgumentHelp();
+                    runNormally = false;
+                }
+            }
+        }
+        return runNormally;
+    }
+    public static void ArgumentHelp() {
+        System.out.println(
+                "\t==Help==\n" +
+                        "-h --help              prints this help info\n" +
+                        "-e --encrypt   [File]  Encrypt a certain file\n" +
+                        "-d --decrypt   [File]  Decrypt a encrypted file\n"
+        );
+    }
+    private static void GetLoginDetails() {
+        System.out.print("Encryption");
+        MakeSecret();
+        CheckKeyPair();
+    }
+
+    private static void LoadConfigData() {
+        //TODO change this to a get and set function with no return and catch
+        ServerDomainName = GetServerIP();
+        CheckConfigFile();
+
+    }
+
+
     private static String GetServerIP(){
         String dnm = "";
-        try {
-            if (Files.exists(Path.of("Turing_server_ip.dat"))) {
-                InputStreamReader fr = new
-                        InputStreamReader(Files.newInputStream(Path.of("Turing_server_ip.dat")));
-                BufferedReader br = new BufferedReader(fr);
-               dnm=br.readLine();
-               br.close();
-            } else {
-                System.out.println("No Server Ip Avail");
-                System.out.println("Enter Server IP:-");
-                dnm = scn.nextLine();
-
-                OutputStreamWriter osw = new
-                        OutputStreamWriter(Files.newOutputStream(Path.of("Turing_server_ip.dat")));
-                BufferedWriter bw = new BufferedWriter(osw);
-                bw.write(dnm);
-                bw.newLine();
-                bw.close();
+        try{
+            dnm = AetherFileHandler.ReadServerIP();
+        }catch (FileNotFoundException e) {
+            //TODO make this a separate function
+            System.out.println("Could not Find Server IP File. \nEnter Server IP to save:- ");
+            //TODO add option to use the default domain name
+            dnm = scn.nextLine();
+            try {
+                AetherFileHandler.WriteServerIP(dnm);
+            } catch (IOException ioException) {
+                System.out.println("Ran into error while saving server ip");
+                ioException.printStackTrace();
             }
-        }catch (IOException e){
-            System.out.println("ERROR WHILE READING SERVER IP FILE");
+        }catch (IOException e) {
+            System.out.println("UNEXPECTED Error while Reading SERVER IP data file");
             e.printStackTrace();
-
             System.exit(-1);
         }
+
         return dnm;
     }
 
     private static void MakeSecret() {
+
+        if(New_Config_File){
+            EncryptionPassword = AetherCLIUtil.confirmPassword();
+        }else {
+            EncryptionPassword = AetherCLIUtil.singlePassword();
+        }
         try{
             final KeyGenerator kg = KeyGenerator.getInstance("AES");
-            kg.init(new SecureRandom(EnigmaClient.EncryptionPassword));
+            kg.init(new SecureRandom(Aether.EncryptionPassword));
             //TODO add salt <- NOT JOKE DO NOT REMOVE
             AESEncryptionKey = kg.generateKey();
-
-
         } catch (NoSuchAlgorithmException e) {
-            System.out.println("ERROR WHILE MAKING KEY");
+            System.out.println("ERROR WHILE MAKING SECRET KEY\nSHA256 ALGO not supported by this JVM");
             e.printStackTrace();
             System.exit(-1);
         }
     }
+    private static void VerifyServerPublicKey(){
+        try {
+            turingConnection = new TuringConnection(ServerDomainName, ServerPort);
+        } catch (GeneralSecurityException | IOException e) {
+            System.out.println("ERROR while Connecting to server");
 
-    private static void CheckRegistration(){
+            e.printStackTrace();
+            System.exit(-1);
+        }
         //TODO clean this garbage code for server public key
-        File ServerPBKFile = new File(ServerPublicKeyFile);
-        if(ServerPBKFile.exists()) {
-
+        if(Files.exists(ServerPublicKeyFile)) {
             try {
                 PublicKey pbk = EnigmaFile.readSignedPublicKey(
-                        ServerPBKFile.toPath(),OurKeyHandler.GetPublicKey());
+                        ServerPublicKeyFile,OurKeyHandler.getPublic());
                 if(pbk != null){
                     ServerPublicKey = pbk;
                     PrintDataHash( "Server Public Key", ServerPublicKey.getEncoded());
                 }
+                if(!Arrays.equals(ServerPublicKey.getEncoded(),turingConnection.serverRSAPublicKey.getEncoded())){
+                    //TODO add stored and got public key hash and signatures
+                    throw new IllegalArgumentException("BAD SERVER KEY, \n" +
+                            "Connected Server is not having the Key stored, \nYou maybe in a man in the middle attack\n" +
+                            "check your network and server public key again");
+                }
             }catch (GeneralSecurityException | IOException e){
-                System.out.println("Error while Reading Stored Server Public Key");
+                System.out.println("Error while Reading Stored Server Public Key\n" + e.getMessage());
+                e.printStackTrace();
                 System.exit(0);
             }
+
         }else {
             System.out.println("No Server Public Key can be found ");
-            try {
-                GetServerPublicKey();
-            } catch (GeneralSecurityException | IOException e) {
-                e.printStackTrace();
-                System.exit(-1);
-            }
+            GetServerPublicKey();
         }
-        if(!Registered)
-            RegisterUser();
-        else{
-            System.out.println("Enter Login Password:-");
-            LoginPassword = GetPasswordFromUser();
-        }
-
     }
-    public static void GetServerPublicKey() throws GeneralSecurityException, IOException {
+    private static void CheckRegistration(){
+
+        if(!Registered) {
+            RegisterUser();
+        }
+        else{
+            System.out.print("Enter Login");
+            PrimaryHash = AetherCLIUtil.singlePassword();
+        }
+        //TODO login turing and update register user function
+    }
+    public static void GetServerPublicKey(){
         System.out.println("Would you like to Get the Public key from the Server?(y/n)");
         String resp = scn.nextLine();
         if(!resp.toLowerCase().startsWith("y")) {
@@ -153,10 +223,10 @@ public class EnigmaClient {
         }
         PublicKey ServerPbk = null;
         try {
-            ServerPbk = TuringConnection.GetPublicKey();
+            ServerPbk = turingConnection.serverRSAPublicKey;
             byte[] hash = EnigmaCrypto.SHA256(ServerPbk.getEncoded());
             System.out.println("Got Key As :-");
-            System.out.println(EnigmaCLI.toHexString(ServerPbk.getEncoded()));
+            System.out.println(AetherCLIUtil.toHexString(ServerPbk.getEncoded()));
             System.out.println("SHA-256:-");
             System.out.println(Base64.getEncoder().encodeToString(hash));
             System.out.println("Would you like this Save This Key?(yes/no)");
@@ -166,32 +236,20 @@ public class EnigmaClient {
                 System.out.println("quiting...");
                 System.exit(0);
             }
-        } catch (ConnectException e){
-            System.out.println("Server Refused to Connect");
-        } catch (IOException | InvalidKeySpecException | NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
+            System.out.println("ERROR ");
             e.printStackTrace();
-            System.exit(0);
         }
         ServerPublicKey = ServerPbk;
-        EnigmaFile.saveSignedPublicKey(
-                Path.of(ServerPublicKeyFile),ServerPublicKey,true,OurKeyHandler.GetPrivateKey());
-    }
-    private static byte[] VerifyGetPassword() throws NoSuchAlgorithmException {
-        char[] hash = new char[0];
-        while (true){
-            char[] Password2;
-            System.out.println("Enter Password:-");
-            hash = EnigmaCLI.getPassword(System.console());
-            System.out.println("Confirm Password:-");
-            Password2 = EnigmaCLI.getPassword(System.console());
-            if(Arrays.equals(hash,Password2)){
-                Arrays.fill(Password2,'\0');
-                break;
-            }
-            System.out.println("Passwords do not match, Try again");
+        try {
+            EnigmaFile.saveSignedPublicKey(
+                    ServerPublicKeyFile,ServerPublicKey,true,OurKeyHandler);
+        } catch (GeneralSecurityException | IOException e) {
+            System.out.println("Error while saving Server Public Key");
+            e.printStackTrace();
         }
-        return EnigmaCrypto.SHA256(hash);
     }
+
     private static void RegisterUser() {
         System.out.println("You are yet to register \n" +
                 "Would you like to start a Registration Request with the server?(yes/no)");
@@ -203,7 +261,7 @@ public class EnigmaClient {
         }
         System.out.println("\tLogin Password");
         try {
-            LoginPassword = VerifyGetPassword();
+            PrimaryHash = EnigmaUser.GeneratePrimaryHash(AetherCLIUtil.confirmPassword(),Username);
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.exit(-1);
@@ -216,7 +274,8 @@ public class EnigmaClient {
             redo = false;
             try {
                 System.out.println("Starting Registration ");
-                TuringConnection.RegisterUser(rgCode, OurKeyHandler, LoginPassword);
+                byte[] ServerHash = EnigmaUser.GenerateServerHash(PrimaryHash);
+                turingConnection.Register( ServerHash,rgCode);
             } catch (IOException | GeneralSecurityException e) {
                 System.out.println("Error while communicating with server");
                 e.printStackTrace();
@@ -238,13 +297,14 @@ public class EnigmaClient {
     private static byte[] GetPasswordFromUser() {
         byte[] hash = new byte[0];
 
-        char[] pass = EnigmaCLI.getPassword(System.console());
+        char[] pass = AetherCLIUtil.getPassword(System.console());
         try {
             hash = EnigmaCrypto.SHA256(pass);
         } catch (NoSuchAlgorithmException e) {
             //highly unlikely we reach here
-            e.printStackTrace();
             Arrays.fill(pass,'\0');
+            System.out.println("ERROR SHA-256 not supported on this machine ");
+            e.printStackTrace();
             System.exit(-1);
         }finally {
             Arrays.fill(pass,'\0');
@@ -273,8 +333,8 @@ public class EnigmaClient {
                 try {
                     KeyPair kp = EnigmaFile.ReadKeyPair(kpFile.toPath(), EncryptionPassword,Username);
                     OurKeyHandler = new EnigmaKeyHandler(kp);
-                    PrintDataHash("Public Key", OurKeyHandler.GetPublicKey().getEncoded());
-                    PrintDataHash("Private Key", OurKeyHandler.GetPrivateKey().getEncoded());
+                    PrintDataHash("Public Key", kp.getPublic().getEncoded());
+                    PrintDataHash("Private Key", kp.getPrivate().getEncoded());
                 } catch (IOException | InvalidKeySpecException e) {
                     //TODO handle bad password
                     System.out.println("Ran into a Error while decrypting KeyPair File\n" +
@@ -312,28 +372,19 @@ public class EnigmaClient {
         }
     }
     private static void PrintBinDataWithSha(byte[] data) throws NoSuchAlgorithmException {
-        System.out.println(SoftWrap(
+        System.out.println(AetherCLIUtil.SoftWrap(
                 Base64.getEncoder().encodeToString(data),80));
         System.out.println("SHA256:-");
         System.out.println(
                 Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(data)));
     }
-    private static String SoftWrap(String input,int wall){
-        StringBuilder sb = new StringBuilder();
-        while (input.length() > wall) {
-            sb.append(input, 0, wall);
-            sb.append("\n");
-            input = input.substring(wall);
-        }
-        sb.append(input);
-        return sb.toString();
-    }
+
     private static void CLIGenKeyPair() throws NoSuchAlgorithmException {
         File kpFile = new File(KeyPairFile);
         System.out.println("Generating New KeyPair");
         KeyPair kp = null;
         try {
-            kp = EnigmaKeyHandler.GenerateKeypair();
+            kp = EnigmaKeyHandler.RSAGenerateKeypair();
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             System.exit(-2);
@@ -352,7 +403,7 @@ public class EnigmaClient {
                 "Save This Key? (yes/no)");
 
         String resp = scn.nextLine();
-        EnigmaCLI.CLS();
+        AetherCLIUtil.CLS();
         System.out.println("Screen Cleared to Hide Keys");
         if(!resp.toLowerCase().startsWith("y")){
             System.out.println("Can Not Run Without KeyPair");
@@ -395,6 +446,7 @@ public class EnigmaClient {
         KeypairGenerated = true;
         SaveConfig();
     }
+
     private static void CheckConfigFile() {
         switch (EnigmaFile.GrabConfig()){
             case "DNE" -> System.out.println("Config File Not Found");
@@ -412,15 +464,16 @@ public class EnigmaClient {
             case "NRP" -> System.out.println("No Read Privilege Config File");
 
             case "OK" -> {
-                System.out.println("Loaded Config");
+                System.out.println("Loaded Configurations");
                 return;
             }
         }
         //If we reach here there is either no config file or a bad config file
-        System.out.println("Would you like to Start a Fresh Config File and Registration or exit? (new/exit) ");
+        System.out.println("Would you like to Start a Fresh Config File and Registration or exit? (NEW/exit) ");
         String resp = scn.nextLine();
 
         if(!resp.toLowerCase().startsWith("new")) {
+            New_Config_File = true;
             System.out.println("Can Not Run Without Config\nPlease rectify the Config File or generate a new Config File\nQuiting...");
             System.exit(-1);
         }

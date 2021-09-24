@@ -1,42 +1,44 @@
 package org.dragonservers.enigma;
 
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.Arrays;
+import java.util.Base64;
 
 public class EnigmaUser implements Serializable {
 
     private String Username;
     public PublicKey PubKey;
-    private byte[] PasswordHash;
-    private final char[] HexTable = "0123456789ABCDEF".toCharArray();
-    private final char separator = ' ';
+    private byte[] serverPasswordHash;
 
-    public EnigmaUser(String username, PublicKey pbk, byte[] passwordHash){
+    public EnigmaUser(String username, PublicKey pbk, byte[] serverHash){
         PubKey = pbk;
-        PasswordHash = passwordHash;
+        serverPasswordHash = serverHash;
         Username = username;
     }
 
-    public void setPasswordHash(byte[] passwordHash) {
-        PasswordHash = passwordHash;
+
+    public void setServerHash(byte[] hash) {
+        serverPasswordHash = hash;
+    }
+    public void setServerFromPrimaryHash(byte[] hash) throws NoSuchAlgorithmException {
+        serverPasswordHash = GenerateServerHash(hash);
+    }
+    public void setServerFromPrimaryHash(char[] pass) throws NoSuchAlgorithmException {
+        serverPasswordHash = GenerateServerHash(pass,Username);
     }
 
-    public boolean VerifyPassword(byte[] Hash, String HeaderUTC) throws NoSuchAlgorithmException {
-        byte[] ourHash = HashPasswordVerification(PasswordHash,HeaderUTC);
-        return Arrays.equals(ourHash,Hash);
+    public boolean VerifyLoginHash(byte[] loginHash, String serverRandom) throws NoSuchAlgorithmException {
+        return Arrays.equals(GenerateLoginHash(serverRandom),loginHash);
     }
-    public static byte[] HashPasswordVerification(byte[] Hash, String Header) throws NoSuchAlgorithmException {
-        byte[] header = Header.getBytes(StandardCharsets.UTF_8);
-        byte[] bin = new byte[header.length + Hash.length];
 
-        System.arraycopy(header,0,bin,0,header.length);
-        System.arraycopy(Hash,0,bin,header.length,Hash.length);
-        return EnigmaCrypto.SHA256(bin);
+    public byte[] GenerateLoginHash(String serverRandom) throws NoSuchAlgorithmException {
+        return GenerateLoginHash(serverPasswordHash,serverRandom,Username);
     }
+
     public PublicKey getPublicKey(){
         return PubKey;
     }
@@ -51,23 +53,56 @@ public class EnigmaUser implements Serializable {
         Username = username;
     }
 
-    private byte[] BinFromHex(String Hex){
-        if(Hex.length()%2 == 1)
-            Hex = "0" + Hex;
-        ByteBuffer bb = ByteBuffer.allocate(Hex.length()/2);
-        for (int i = 0; i < Hex.length(); i+=2) {
-            byte part = (byte) Integer.parseInt( Hex.substring(i,i+2), 16);
-            bb.put(part);
-        }
+    public static byte[] GenerateLoginHash(byte[] serverHash,String serverRandom,String username)
+            throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
 
-        return bb.array();
+        md.update(
+                (
+                        serverRandom + "_" + username +
+                        Base64.getEncoder().encodeToString(serverHash) +
+                        username + "_" + serverRandom
+                ).getBytes(StandardCharsets.UTF_8)
+        );
+        Arrays.fill(serverHash,(byte)0x00);
+        return md.digest();
     }
-    private String HexFromBin(byte[] bin){
-        StringBuilder sb = new StringBuilder();
-        for(byte part: bin)
-            sb.append(String.format("%02X",part));
-        return sb.toString();
+
+    public static byte[] GenerateServerHash(char[] pass,String username) throws NoSuchAlgorithmException {
+        return GenerateServerHash(GeneratePrimaryHash(pass,username));
     }
+    public static byte[] GenerateServerHash(byte[] primaryHash) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+
+        md.update((
+                "Turing_" +
+                Base64.getEncoder().encodeToString(primaryHash) +
+                "_Turing"
+                ).getBytes(StandardCharsets.UTF_8)
+        );
+        return md.digest();
+    }
+    public static byte[] GeneratePrimaryHash(char[] pass,String username) throws NoSuchAlgorithmException {
+        byte[] bin = new byte[pass.length];
+        for (int i = 0; i < bin.length; i++) {
+            bin[i] = (byte) pass[i];
+            pass[i] = '\0';
+        }
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(bin);
+        return GeneratePrimaryHash(md.digest(),username);
+    }
+    public static byte[] GeneratePrimaryHash(byte[] Hash,String username) throws NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        md.update(("Enigma_Turing_" + username + "_").getBytes(StandardCharsets.UTF_8));
+
+        md.update(Hash);
+        Arrays.fill(Hash,(byte)0);
+
+        md.update(("_" + username + "_Turing_Enigma").getBytes(StandardCharsets.UTF_8));
+        return md.digest();
+    }
+
     public static boolean IsValidUsername(String username){
         username = username.toUpperCase();
         String acceptableUsernameChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_-";

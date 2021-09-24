@@ -2,7 +2,7 @@ package org.dragonservers.enigma;
 
 
 
-import org.dragonservers.enigmaclient.EnigmaClient;
+import org.dragonservers.Aether.Aether;
 
 import javax.crypto.BadPaddingException;
 import java.io.*;
@@ -18,13 +18,13 @@ import java.util.List;
 public class EnigmaFile {
 
     //Constants
-    final static byte[] KeyPairSignature =
+    public final static byte[] KeyPairSignature =
             new byte[]{ (byte)0x78,(byte)0xe6,(byte)0x42,(byte)0x06,(byte)0xd8,(byte)0x00,(byte)0x0f,(byte)0xeb};
-    final static byte[] PublicKeySignedSignature =
+    public final static byte[] PublicKeySignedSignature =
             new byte[]{ (byte)0x41,(byte)0x4D,(byte)0x54,(byte)0x75,(byte)0x72,(byte)0x69,(byte)0x6e,(byte)0x67};
-    final static byte[] FriendSignature =
+    public final static byte[] FriendSignature =
             new byte[]{ (byte)0x4D,(byte)0x61,(byte)0x73,(byte)0x74,(byte)0x65,(byte)0x48,(byte)0x47,(byte)0x01};
-    final static byte[] EncryptionSignature =
+    public final static byte[] EncryptionSignature =
             new byte[]{ (byte)0x1d,(byte)0x08,(byte)0x14,(byte)0x0e,(byte)0x17,(byte)0x06,(byte)0x13,(byte)0x36};
     public static byte[] VersionCode =
             new byte[]{ (byte)0x00,(byte)0x00,(byte)0x00,(byte)0x00};
@@ -36,7 +36,6 @@ public class EnigmaFile {
     //      signature
     //    so u can share this with your friends
     //TODO Add AES file Encryption
-    //TODO Add file partitioning (cut a large file into smaller files and later recombine them)
     public static void MKDIR(File file) throws IOException {
         if(file.exists()){
             if(!file.isDirectory())
@@ -89,7 +88,7 @@ public class EnigmaFile {
             throw new IOException("BAD HASH");
 
         bis.close();
-        return EnigmaKeyHandler.KeyPairFromEnc(PubEnc,PrvEnc);
+        return EnigmaKeyHandler.RSAKeyPairFromEnc(PubEnc,PrvEnc);
     }
     //Writing
     //Master Function
@@ -132,7 +131,7 @@ public class EnigmaFile {
         if(!Arrays.equals(signature,PublicKeySignedSignature))
             throw new IOException("Bad Signature on Public Key File");
         byte[] pbkEnc = readBlock(bis);
-        PublicKey pbk = EnigmaKeyHandler.PublicKeyFromEnc(pbkEnc);
+        PublicKey pbk = EnigmaKeyHandler.RSAPublicKeyFromEnc(pbkEnc);
 
         Signature sgn = Signature.getInstance("SHA256withRSA");
         sgn.initVerify(publicKey);
@@ -144,7 +143,8 @@ public class EnigmaFile {
         return pbk;
 
     }
-    public static void saveSignedPublicKey(Path file, PublicKey pbk, boolean Overwrite,  PrivateKey privateKey)
+    //TODO update this to use EnigmaKeyHandler
+    public static void saveSignedPublicKey(Path file, PublicKey pbk, boolean Overwrite,  EnigmaKeyHandler pk)
             throws GeneralSecurityException, IOException {
         if(!Overwrite && Files.exists(file))
             throw new IOException("File Already Exists");
@@ -155,8 +155,7 @@ public class EnigmaFile {
         bos.write(PublicKeySignedSignature);
         writeBlock(bos,pbkEnc);
 
-        Signature sgn = Signature.getInstance("SHA256withRSA");
-        sgn.initSign(privateKey );
+        Signature sgn = pk.GetSignature();
         sgn.update(pbkEnc);
         writeBlock(bos,sgn.sign());
         bos.close();
@@ -231,7 +230,7 @@ public class EnigmaFile {
         //Functions for handling Config Files
     public static String GrabConfig() {
 
-        File configFile = new File(EnigmaClient.ConfigFileName);
+        File configFile = new File(Aether.ConfigFileName);
 
         if(!configFile.exists())
             return "DNE";
@@ -248,7 +247,7 @@ public class EnigmaFile {
 
         try {
             //TODO improve this algo
-            List<String> lines = Files.readAllLines(Paths.get(EnigmaClient.ConfigFileName));
+            List<String> lines = Files.readAllLines(Paths.get(Aether.ConfigFileName));
             for (String line:lines) {
                 if(line.startsWith("#"))
                     continue;
@@ -258,8 +257,6 @@ public class EnigmaFile {
                         AnsPresent[i] = true;
                     }
             }
-
-
         }catch (FileNotFoundException e){
             return "FNF";
         } catch (IOException e) {
@@ -271,12 +268,12 @@ public class EnigmaFile {
         if(!AnsPresent[0])
             return "CF";
         else
-            EnigmaClient.Username = Ans[0];
+            Aether.Username = Ans[0];
 
         if(AnsPresent[1])
-            EnigmaClient.Registered = Ans[1].equalsIgnoreCase("true");
+            Aether.Registered = Ans[1].equalsIgnoreCase("true");
         if(AnsPresent[2])
-            EnigmaClient.KeypairGenerated = Ans[2].equalsIgnoreCase("true");
+            Aether.KeypairGenerated = Ans[2].equalsIgnoreCase("true");
 
         return "OK";
     }
@@ -292,7 +289,7 @@ public class EnigmaFile {
         return line.substring(sepLoc + 1); //Magic:Check gives 5
     }
     public static String PushConfig(){
-        File config = new File(EnigmaClient.ConfigFileName);
+        File config = new File(Aether.ConfigFileName);
 
         if(!config.exists()){
             try {
@@ -310,14 +307,14 @@ public class EnigmaFile {
             return "NWP"; //No Write Privilege
         String[] Ans = new String[configFileValues.length];
 
-        Ans[0] = EnigmaClient.Username;
-        Ans[1] = (EnigmaClient.Registered) ? "true" : "false";
-        Ans[2] = (EnigmaClient.KeypairGenerated) ? "true" : "false";
+        Ans[0] = Aether.Username;
+        Ans[1] = (Aether.Registered) ? "true" : "false";
+        Ans[2] = (Aether.KeypairGenerated) ? "true" : "false";
 
         try {
             FileWriter fw = new FileWriter(config);
             BufferedWriter bw = new BufferedWriter(fw);
-            bw.write( "#" + "Enigma Version " + EnigmaClient.EnigmaVersion + "\n");
+            bw.write( "#" + "Enigma Version " + Aether.EnigmaVersion + "\n");
             bw.write("# NOT INTENDED FOR USER EDITING, TO Change Settings Go Through Software Interface" + "\n");
             bw.write("# Updated on " + EnigmaTime.GetFormattedTime() + "\n");
             for (int i = 0; i < configFileValues.length; i++) {

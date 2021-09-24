@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 
 
@@ -12,7 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.util.*;
 
-public class EnigmaCLI {
+public class AetherCLI {
 	public static final String ANSI_CLS = "\u001b[2J";
 	public static final String ANSI_HOME = "\u001b[H";
 	public static final String ANSI_BOLD = "\u001b[1m";
@@ -20,11 +20,10 @@ public class EnigmaCLI {
 	public static final String ANSI_REVERSEON = "\u001b[7m";
 	public static final String ANSI_NORMAL = "\u001b[0m";
 	public static final String ANSI_WHITEONBLUE = "\u001b[37;44m";
-	public static final boolean IsWindows = System.getProperty("os.name").contains("Windows");
 
 	public static Thread backgroundThread,EIHThread ;
-	public static EngimaBackground engimaBackgroundProcess;
-	public static EnigmaInboxHandler enigmaInboxHandler;
+	public static AetherBackground engimaBackgroundProcess;
+	public static AetherInboxHandler aetherInboxHandler;
 
 	public static void MainMenu(){
 		try{
@@ -41,14 +40,14 @@ public class EnigmaCLI {
 		StartBackgroundThread();
 		try {
 			while (true) {
-				CLS();
+				AetherCLIUtil.CLS();
 				System.out.println("\t== Enigma ==");
 				System.out.println("\tF - Friends");
 				System.out.println("\tI - Inbound Request");
 				System.out.println("\tS - Send a Request");
 
 				System.out.println("\tQ - Quit");
-				String resp = EnigmaClient.scn.nextLine().toLowerCase();
+				String resp = Aether.scn.nextLine().toLowerCase();
 				if (resp.startsWith("q"))
 					break;
 				if(resp.length() > 0) {
@@ -72,36 +71,36 @@ public class EnigmaCLI {
 			System.out.println("We ran into a unexpected Exception ");
 			e.getMessage();
 			e.printStackTrace();
-			EnigmaClient.scn.nextLine();
+			Aether.scn.nextLine();
 		}finally {
 			//TODO any Save operation if needed
 			engimaBackgroundProcess.keep_Running = false;
-			enigmaInboxHandler.keep_Running = false;
+			aetherInboxHandler.keep_Running = false;
 			EIHThread.interrupt();
 			backgroundThread.interrupt();
 		}
 		try {
 			System.out.println("Saving");
-			EnigmaFriendManager.Save();
+			AetherFriendManager.Save();
 		} catch (GeneralSecurityException | IOException e) {
 			System.out.println("Ran INTO error while Saving");
 			e.printStackTrace();
-			EnigmaClient.scn.nextLine();
+			Aether.scn.nextLine();
 		}
-		CLS();
+		AetherCLIUtil.CLS();
 		System.out.println("=GOODBYE=");
 	}
 
 	private static void DisplayOutboundRequest() {
-		CLS();
+		AetherCLIUtil.CLS();
 		System.out.println("Send a new introduction request? (y/n)");
-		String resp = EnigmaClient.scn.nextLine().toLowerCase();
+		String resp = Aether.scn.nextLine().toLowerCase();
 		while(resp.startsWith("y")){
 			System.out.println("Enter Username:-");
-			String username = EnigmaClient.scn.nextLine().toLowerCase(Locale.ROOT);
+			String username = Aether.scn.nextLine().toLowerCase(Locale.ROOT);
 			PublicKey publicKey = null;
 			try {
-				publicKey = EnigmaClient.TuringConnection.GetUserPublicKey(username);
+				publicKey = EnigmaKeyHandler.RSAPublicKeyFromEnc( Aether.turingConnection.GetPublicKey(username) );
 			}catch (Exception e){
 				System.out.println("Error While Trying to get Public Key From the Server");
 				e.getMessage();
@@ -116,9 +115,9 @@ public class EnigmaCLI {
 								.getEncoder()
 								.encodeToString(EnigmaCrypto.SHA256(publicKey.getEncoded())));
 					System.out.println("Continue? (y/n)");
-					String rep = EnigmaClient.scn.nextLine();
+					String rep = Aether.scn.nextLine();
 					if(rep.toLowerCase(Locale.ROOT).startsWith("y")){
-						EnigmaPacketFactory.SendIntroductionToken(username,publicKey);
+						AetherPacketFactory.SendIntroductionToken(username,publicKey);
 						System.out.println("Sent token to " + username );
 					}else {
 						System.out.println("Canceling..");
@@ -129,7 +128,7 @@ public class EnigmaCLI {
 				}
 			}
 			System.out.println("Send another?(y/n)");
-			resp = EnigmaClient.scn.nextLine().toLowerCase();
+			resp = Aether.scn.nextLine().toLowerCase();
 		}
 
 	}
@@ -139,7 +138,7 @@ public class EnigmaCLI {
 		String sentUsername = "";
 		Exception sendException = null;
 		while (true) {
-			CLS();
+			AetherCLIUtil.CLS();
 			if(sentRequest){
 				System.out.println("Sent response to " + sentUsername);
 				sentRequest = false;
@@ -154,10 +153,10 @@ public class EnigmaCLI {
 			System.out.println("\t==Inbound Requests==");
 			System.out.println("\tEnter A Number To reply to the request");
 			System.out.println("\tThis will Start a Key X");
-			String[] requestList = EnigmaFriendManager.GetRequestsList();
+			String[] requestList = AetherFriendManager.GetRequestsList();
 			PrintList(requestList);
 			System.out.println("Q - Quit");
-			String resp = EnigmaClient.scn.nextLine().toLowerCase();
+			String resp = Aether.scn.nextLine().toLowerCase();
 			if(resp.contains("q"))
 				break;
 			int responseID = -1;
@@ -170,12 +169,12 @@ public class EnigmaCLI {
 				sentUsername = requestList[responseID - 1];
 				System.out.println( "Confirm Send Request to " + sentUsername + "?" );
 				System.out.print( "Type \"SEND\" to confirm:-" );
-				String Confirmation = EnigmaClient.scn.nextLine();
+				String Confirmation = Aether.scn.nextLine();
 
 				if(Confirmation.equals("SEND")){
 					System.out.println("Responding to Request of " + sentUsername);
 					try {
-						EnigmaPacketFactory.SendIntroductionToken(sentUsername);
+						AetherPacketFactory.SendIntroductionToken(sentUsername);
 						System.out.println("Sent");
 						sentRequest = true;
 					} catch (GeneralSecurityException | IOException e) {
@@ -190,7 +189,7 @@ public class EnigmaCLI {
 	private static void DisplayFriends() {
 		String header = "";
 		while (true) {
-			CLS();
+			AetherCLIUtil.CLS();
 			System.out.println(
 					"\t==Friends List==\n" +
 					"\tEnter A Number To Enter A chat with them\n" +
@@ -201,7 +200,7 @@ public class EnigmaCLI {
 					"\tUse !help to see a list of commands\n" +
 					"\tWe suggest You expand your terminal to display at least 40 lines\n"
 			);
-			List<String> friendsSet = EnigmaFriendManager.GetLatestFriendsList();
+			List<String> friendsSet = AetherFriendManager.GetLatestFriendsList();
 			String[] friends = new String[friendsSet.size()];
 			friendsSet.toArray(friends);
 			PrintList(friends);
@@ -209,7 +208,7 @@ public class EnigmaCLI {
 			System.out.println("Q - Quit");
 			System.out.print(header);
 			System.out.print(":-");
-			String resp = EnigmaClient.scn.nextLine().toLowerCase();
+			String resp = Aether.scn.nextLine().toLowerCase();
 			if(resp.contains("q"))
 				break;
 			int responseID;
@@ -220,7 +219,7 @@ public class EnigmaCLI {
 			}
 			if(responseID > 0 && responseID <= friends.length){
 				try {
-					EnigmaFriendManager.OpenMessageWindow(friends[responseID - 1]);
+					AetherFriendManager.OpenMessageWindow(friends[responseID - 1]);
 				} catch (GeneralSecurityException | IOException | ClassNotFoundException e) {
 					header = "Error Occurred While Opening Message Window\nERROR:-";
 					header += e.getMessage();
@@ -237,7 +236,7 @@ public class EnigmaCLI {
 		for (int i = 0; i < usernames.length; i++) {
 			try {
 				System.out.println( (i + 1) + ":" +
-						EnigmaFriendManager.RenderName(usernames[i]) );
+						AetherFriendManager.RenderName(usernames[i]) );
 			} catch (NoSuchAlgorithmException e) {
 				System.out.println("Security Error SHA256 not supported");
 				e.printStackTrace();
@@ -250,17 +249,17 @@ public class EnigmaCLI {
 	}
 
 	private static void StartBackgroundThread() {
-		engimaBackgroundProcess = new EngimaBackground();
+		engimaBackgroundProcess = new AetherBackground();
 		backgroundThread = new Thread(engimaBackgroundProcess);
 		backgroundThread.start();
-		enigmaInboxHandler = new EnigmaInboxHandler();
-		 EIHThread = new Thread(enigmaInboxHandler);
+		aetherInboxHandler = new AetherInboxHandler();
+		 EIHThread = new Thread(aetherInboxHandler);
 		EIHThread.start();
 	}
 
 	private static void LogIn() throws IOException, GeneralSecurityException {
 		System.out.println("Logging in....");
-		EnigmaClient.TuringConnection.LogIn();
+		Aether.turingConnection.Login(Aether.Username,EnigmaUser.GenerateServerHash( Aether.PrimaryHash) ) ;
 		System.out.println("Logged IN");
 
 
@@ -268,63 +267,19 @@ public class EnigmaCLI {
 	private static void LoadFriendList() throws GeneralSecurityException, IOException, ClassNotFoundException {
 		System.out.println("Loading Friend List...");
 
-		if(EnigmaFriendManager.IsFileMissing()){
+		if(AetherFriendManager.IsFileMissing()){
 			System.out.println("NO Friend List Found");
 			System.out.println("Create New Friend List?(Y/N)");
-			String resp = EnigmaClient.scn.nextLine();
+			String resp = Aether.scn.nextLine();
 			if(!resp.toLowerCase().startsWith("y")){
 				System.out.println("Please Replace the Friend List File to continue\n");
 				System.exit(0);
 			}
 			System.out.println("Creating New empty Friend list");
-			EnigmaFriendManager.InitialiseNewFile();
+			AetherFriendManager.InitialiseNewFile();
 		}else {
-			EnigmaFriendManager.Load();
+			AetherFriendManager.Load();
 		}
 	}
 
-	public static void CLS(){
-		System.out.println("Cleared");
-		if(IsWindows){
-			try {
-				new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
-			} catch (InterruptedException | IOException e) {
-				e.printStackTrace();
-				System.out.println("Error While Trying to Clear Console");
-			}
-		}else {
-			System.out.print("\033[H\033[2J");
-			System.out.flush();
-		}
-	}
-	public static char[] getPassword(Console con){
-		char[] Pass;
-		if(con != null) {
-			Pass = con.readPassword();
-		}else{
-			String s = EnigmaClient.scn.nextLine();
-			Pass = s.toCharArray();
-		}
-		return Pass;
-	}
-	public static String toHexString(byte[] block) {
-		StringBuffer buf = new StringBuffer();
-		int len = block.length;
-		for (int i = 0; i < len; i++) {
-			byte2hex(block[i], buf);
-			if (i < len-1) {
-				buf.append(":");
-			}
-			if(i%32 == 31)buf.append("\n");
-		}
-		return buf.toString();
-	}
-	private static void byte2hex(byte b, StringBuffer buf) {
-		char[] hexChars = { '0', '1', '2', '3', '4', '5', '6', '7', '8',
-				'9', 'A', 'B', 'C', 'D', 'E', 'F' };
-		int high = ((b & 0xf0) >> 4);
-		int low = (b & 0x0f);
-		buf.append(hexChars[high]);
-		buf.append(hexChars[low]);
-	}
 }

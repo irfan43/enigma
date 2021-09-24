@@ -46,7 +46,7 @@ public class PublicKeyMiner implements Runnable {
 		currentSearch = searchString.substring(0,1);
 		while(PublicKeyExecuter.threadsDoHash) {
 			try {
-				KeyPair kp = EnigmaKeyHandler.GenerateKeypair();
+				KeyPair kp = EnigmaKeyHandler.RSAGenerateKeypair();
 				String b64 = Base64.getEncoder().encodeToString(
 						EnigmaCrypto.SHA256(kp.getPublic().getEncoded()));
 				hashCount++;

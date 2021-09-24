@@ -22,11 +22,11 @@ public class Turing {
     public static Logger TuringLogger;
     public static boolean Logging = true,running = true,DoSaveOP = true;
     public static Thread TPortListener,TuringCLIHandler,TuringSHThread;
-    public static TuringNetworkListener TListener;
+    public static NetworkListener TListener;
     public static CmdLineHandler CLI_Handler;
     public static EnigmaKeyHandler TuringKH;
     public static RegistrationCodeFactory CodeFac;
-    public static EnigmaUserFactory EUserFac;
+    public static TuringUserFactory EUserFac;
     public static TuringInbox EnigmaInboxs;
     public static SessionHandler sesHandler;
     public static TuringSaveHandler TuringSH;
@@ -83,16 +83,16 @@ public class Turing {
             }else {
                 System.out.println("Got Password From Command Line");
             }
-            TuringKH = new EnigmaKeyHandler(new File("keys/TuringKeyPair.kpr"),Password);
+            TuringKH = new EnigmaKeyHandler(new File("keys/TuringKeyPair.kpr"),Password,"Turing");
             System.out.println("Running with Public Key:-");
-            String HexPubKeyEnc = Base64.getEncoder().encodeToString( TuringKH.GetPublicKey().getEncoded() );
+            String HexPubKeyEnc = Base64.getEncoder().encodeToString( TuringKH.getPublic().getEncoded() );
             System.out.println(HexPubKeyEnc);
             System.out.println("SHA256:-");
-            System.out.println(Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(TuringKH.GetPublicKey().getEncoded())));
+            System.out.println(Base64.getEncoder().encodeToString(EnigmaCrypto.SHA256(TuringKH.getPublic().getEncoded())));
             //loading the code factory and data handling objects
             TuringLogger.log(Level.FINE, "Loading Factories");
             CodeFac = new RegistrationCodeFactory();
-            EUserFac = new EnigmaUserFactory();
+            EUserFac = new TuringUserFactory();
             EnigmaInboxs = new TuringInbox();
             sesHandler = new SessionHandler();
 
@@ -109,7 +109,7 @@ public class Turing {
             TuringCLIHandler.start();
 
             //Networking Portion
-            TListener = new TuringNetworkListener();
+            TListener = new NetworkListener();
             TPortListener = new Thread(TListener);
             TPortListener.start();
 

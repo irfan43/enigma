@@ -1,4 +1,4 @@
-package org.dragonservers.enigmaclient;
+package org.dragonservers.Aether;
 
 
 
@@ -22,7 +22,7 @@ import com.sun.jna.ptr.IntByReference;
  * A JNA based driver for reading single characters from the console.
  *
  * <p>This class is used for console mode programs.
- * It supports non-blocking reads of single key strokes without echo.
+ * It supports non-blocking reads of single key-strokes without echo.
  */
 public class RawConsoleInput {
 
