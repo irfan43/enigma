@@ -39,9 +39,11 @@ public class Aether {
     public          static SecretKey        AESEncryptionKey;
     public          static boolean          New_Config_File         = false;
     //TODO handle a quick fresh install
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
 
         System.out.println( ClientName + " " + EnigmaVersion + "\nMade By Indus, Kitten, Highground Master");
+        AetherFileEncryption.Decrypt(Path.of("2.tif"),Path.of("output"),false);
+        System.exit(1);
         //Start of Enigma
         /*
             TODO
@@ -84,7 +86,7 @@ public class Aether {
             //TODO handle any arguments that come up
             switch (args[0].toLowerCase()) {
                 case "--encrypt", "--decrypt", "-e", "-d" -> {
-                    AetherFileEncryptionCLI.Encrypt(args);
+                    AetherFileEncryption.HandleCmdARGS(args);
                     runNormally = false;
                 }
                 case "--raw-test" -> {

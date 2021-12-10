@@ -6,6 +6,7 @@ import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.nio.ByteBuffer;
@@ -42,7 +43,7 @@ public class AetherFileEncryptionCLI {
 			switch(args[0].toLowerCase()){
 				case "--encrypt","-e" -> {
 					Path output = Path.of(GetFileName(target) + ".crypt");
-					encryptFile(target,output);
+					EncryptDirectory(target,output);
 				}
 				case "--decrypt","-d" ->
 					decryptFile(target);
@@ -151,7 +152,9 @@ public class AetherFileEncryptionCLI {
 			throw new IllegalArgumentException("BAD FILE NAME escaping directory Attack detected");
 
 	}
-	private static void encryptFile(Path target,Path output) {
+	// input target should be array
+
+	public static void EncryptDirectory(Path target, Path output) {
 		SecretKeySpec secretKey = GetSecretKey(true);
 		Cipher eCipher = GetCipher(secretKey);
 
@@ -237,6 +240,8 @@ public class AetherFileEncryptionCLI {
 		} catch (InvalidKeyException e) {
 			System.out.println("ERROR Initializing Cipher");
 			e.printStackTrace();
+
+
 			System.exit(0);
 		}
 		return cipher;
@@ -250,13 +255,14 @@ public class AetherFileEncryptionCLI {
 			System.out.println("ERROR Initializing Cipher");
 			e.printStackTrace();
 			System.exit(0);
-		}
+		};
 		return cipher;
 	}
 
 	private static Cipher CipherInstance(){
 		Cipher cipher = null;
 		try {
+			//cipher = Cipher.getInstance("AES/GCM/NoPadding");
 			cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
 		} catch (NoSuchAlgorithmException e) {
 			System.out.println("Your JVM does not Support AES/CBC Encryption");

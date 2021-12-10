@@ -69,7 +69,7 @@ public class AetherCLIUtil {
 			e.printStackTrace();
 		}
 	}
-
+	@Deprecated
 	public static byte[] getPasswordHash(){
 		char[] pass = getPassword(System.console());
 		byte[] hash = new byte[0];
