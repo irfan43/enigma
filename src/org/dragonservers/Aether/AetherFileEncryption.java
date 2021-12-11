@@ -11,7 +11,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 public class AetherFileEncryption {
@@ -75,7 +74,7 @@ public class AetherFileEncryption {
             System.out.println("no Target Specified\nPlease Specify a target");
         }
         System.out.println("Encryption Password:-");
-        Encrypt(target,output,overwrite,);
+//        Encrypt(target,output,overwrite,);
     }
     public static void Encrypt(List<Path> target,Path output, boolean overwrite, SecretKey secretKey) throws IOException {
         for (Path p: target) {

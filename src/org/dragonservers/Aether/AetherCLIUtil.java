@@ -2,9 +2,15 @@ package org.dragonservers.Aether;
 
 import org.dragonservers.enigma.EnigmaCrypto;
 
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import java.io.Console;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.util.Arrays;
 
 public class AetherCLIUtil {
@@ -69,6 +75,11 @@ public class AetherCLIUtil {
 			e.printStackTrace();
 		}
 	}
+
+	/**
+	 * Deprecated because does not use a PBKDF
+	 * @return
+	 */
 	@Deprecated
 	public static byte[] getPasswordHash(){
 		char[] pass = getPassword(System.console());
@@ -84,6 +95,7 @@ public class AetherCLIUtil {
 		return hash;
 	}
 
+
 	public static byte[] singlePassword(){
 		System.out.print("Password :-");
 		return getPasswordHash();
@@ -94,17 +106,47 @@ public class AetherCLIUtil {
 		boolean wrong = false;
 		do {
 			CLS();
-			if(wrong){
+			if(wrong)
 				System.out.println("Passwords did not Match");
-			}
-			hash = singlePassword();
+
+			hash 		= singlePassword();
 			System.out.print("Confirm");
 			confirmHash = singlePassword();
+
 			wrong = true;
 		}while (!Arrays.equals(hash,confirmHash));
 
 		Arrays.fill(confirmHash,(byte)0x00);
 		return hash;
+	}
+
+	public static SecretKey getSecretKeyFromChar(char[] password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+		// use the "PKCS#5" or "PBE" SecretKeyFactory to convert the password
+		SecretKeyFactory kf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+		KeySpec specs = new PBEKeySpec(
+				password,
+				salt,
+				1024,
+				256
+		);
+		return kf.generateSecret(specs);
+	}
+	public static SecretKey getSecretKeyFromConsole(Console con,boolean confirm,byte[] salt) throws GeneralSecurityException {
+		char[] password;
+		char[] passwordConfirm = {};
+
+		do{
+			System.out.println("Password:-");
+			password = getPassword(con);
+			if(confirm){
+				System.out.println("Confirmation \nPassword:-");
+				passwordConfirm = getPassword(con);
+			}
+		}while (confirm && !Arrays.equals(passwordConfirm,password));
+
+		Arrays.fill(passwordConfirm, '\0');
+
+		return getSecretKeyFromChar(password,salt);
 	}
 
 	public static String SoftWrap(String input, int wall){

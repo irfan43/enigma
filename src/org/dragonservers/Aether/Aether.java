@@ -1,6 +1,7 @@
 package org.dragonservers.Aether;
 
 
+import org.dragonservers.Aether.FileEncryption.FileEncryptionInterface;
 import org.dragonservers.enigma.*;
 
 import javax.crypto.KeyGenerator;
@@ -39,8 +40,12 @@ public class Aether {
     public          static SecretKey        AESEncryptionKey;
     public          static boolean          New_Config_File         = false;
     //TODO handle a quick fresh install
-    public static void main(String[] args) throws IOException {
-
+    public static void main(String[] args) throws IOException, GeneralSecurityException {
+        List<Path> testDir = new ArrayList<>();
+        testDir.add(Path.of("Papers"));
+        testDir.add(Path.of("CS553"));
+        new FileEncryptionInterface(testDir,Path.of("output.aef"),true);
+        System.exit(-1);
         System.out.println( ClientName + " " + EnigmaVersion + "\nMade By Indus, Kitten, Highground Master");
         AetherFileEncryption.Decrypt(Path.of("2.tif"),Path.of("output"),false);
         System.exit(1);
